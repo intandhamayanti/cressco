@@ -1,3 +1,144 @@
+@import url('https://fonts.bunny.net/css?family=dm-sans:400,500,600,700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    /* Font Family */
+    --font-dm-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    /* Terracotta (Primary / Brand) */
+    --color-terracotta-50: #FCF5F3;
+    --color-terracotta-100: #FAE0DA;
+    --color-terracotta-200: #F3B9AA;
+    --color-terracotta-300: #E88C74;
+    --color-terracotta-400: #DE6544;
+    --color-terracotta-500: #CC4420;
+    --color-terracotta-600: #B5381B;
+    --color-terracotta-700: #852918;
+    --color-terracotta-800: #611C10;
+    --color-terracotta-900: #3B110B;
+
+    /* Semantic Primary Aliases */
+    --color-primary-50: var(--color-terracotta-50);
+    --color-primary-100: var(--color-terracotta-100);
+    --color-primary-200: var(--color-terracotta-200);
+    --color-primary-300: var(--color-terracotta-300);
+    --color-primary-400: var(--color-terracotta-400);
+    --color-primary-500: var(--color-terracotta-500);
+    --color-primary-600: var(--color-terracotta-600);
+    --color-primary-700: var(--color-terracotta-700);
+    --color-primary-800: var(--color-terracotta-800);
+    --color-primary-900: var(--color-terracotta-900);
+
+    /* Info */
+    --color-info-50: #F0F5FF;
+    --color-info-100: #DBE8FE;
+    --color-info-200: #BFD7FD;
+    --color-info-300: #93BBFA;
+    --color-info-400: #669EF8;
+    --color-info-500: #367EE9;
+    --color-info-600: #2B66C4;
+    --color-info-700: #234F94;
+    --color-info-800: #1B365D;
+    --color-info-900: #0F1E36;
+
+    /* Success */
+    --color-success-50: #F2FAF5;
+    --color-success-100: #DCF5E5;
+    --color-success-300: #A5E4BA;
+    --color-success-400: #6ED68F;
+    --color-success-500: #32C75E;
+    --color-success-600: #1EAA4A;
+    --color-success-700: #168B3C;
+
+    /* Warning */
+    --color-warning-50: #FEF9EC;
+    --color-warning-100: #FDF2D5;
+    --color-warning-300: #F9D788;
+    --color-warning-400: #F6C153;
+    --color-warning-500: #F3AA1C;
+    --color-warning-600: #D99411;
+    --color-warning-700: #B87A0B;
+
+    /* Error */
+    --color-error-50: #FDF4F4;
+    --color-error-100: #F9DCDC;
+    --color-error-300: #EAA7A7;
+    --color-error-400: #E27C7C;
+    --color-error-500: #D9534F;
+    --color-error-600: #C53B3B;
+    --color-error-700: #912018;
+
+    /* Neutral Gray Scale */
+    --color-gray-0: #FFFFFF;
+    --color-gray-25: #FCFCFD;
+    --color-gray-50: #F8F9FA;
+    --color-gray-100: #F2F4F7;
+    --color-gray-200: #EAECF0;
+    --color-gray-300: #D0D5DD;
+    --color-gray-400: #98A2B3;
+    --color-gray-500: #667085;
+    --color-gray-600: #475467;
+    --color-gray-700: #344054;
+    --color-gray-800: #1D2939;
+    --color-gray-900: #101828;
+
+    /* Background Tokens */
+    --color-bg-primary: #FFFFFF;
+    --color-bg-secondary: #F8F9FA;
+
+    /* Surface Tokens */
+    --color-surface-default: #FFFFFF;
+    --color-surface-hover: #F4F5F6;
+    --color-surface-active: #EEF0F2;
+}
+
+/* Typography Token Utilities */
+@layer utilities {
+    .typography-display-2xl {
+        font-size: 72px;
+        line-height: 90px;
+    }
+    .typography-display-xl {
+        font-size: 60px;
+        line-height: 72px;
+    }
+    .typography-display-lg {
+        font-size: 48px;
+        line-height: 60px;
+    }
+    .typography-display-md {
+        font-size: 36px;
+        line-height: 44px;
+    }
+    .typography-display-sm {
+        font-size: 30px;
+        line-height: 38px;
+    }
+    .typography-display-xs {
+        font-size: 24px;
+        line-height: 32px;
+    }
+    .typography-text-xl {
+        font-size: 20px;
+        line-height: 30px;
+    }
+    .typography-text-lg {
+        font-size: 18px;
+        line-height: 28px;
+    }
+    .typography-text-md {
+        font-size: 16px;
+        line-height: 24px;
+    }
+    .typography-text-sm {
+        font-size: 14px;
+        line-height: 20px;
+    }
+    .typography-text-xs {
+        font-size: 12px;
+        line-height: 18px;
+    }
+}
