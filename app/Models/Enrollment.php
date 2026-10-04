@@ -54,6 +54,11 @@ class Enrollment extends Model
         return $this->belongsTo(Classes::class, 'class_id');
     }
 
+    public function classModel(): BelongsTo
+    {
+        return $this->class();
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);

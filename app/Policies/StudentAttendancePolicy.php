@@ -80,6 +80,10 @@ class StudentAttendancePolicy
             return $user->hasBranchAccess($attendance->branch_id);
         }
 
+        if ($user->isTutor()) {
+            return $user->canAccessTeachingSession($attendance->teachingSession);
+        }
+
         return false;
     }
 

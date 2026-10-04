@@ -1,6 +1,6 @@
 @props([
     'label' => null,
-    'placeholder' => 'Placeholder',
+    'placeholder' => 'Pilih Opsi',
     'helper' => null,
     'error' => null,
     'disabled' => false,
@@ -9,6 +9,8 @@
     'selected' => null,
     'id' => null,
     'name' => null,
+    'size' => 'md', // 'sm', 'md'
+    'autoSubmit' => false,
 ])
 
 @php
@@ -20,7 +22,10 @@
     $formattedOptions = [];
     foreach ($options as $opt) {
         if (is_array($opt)) {
-            $formattedOptions[] = $opt;
+            $formattedOptions[] = [
+                'value' => (string) ($opt['value'] ?? ''),
+                'label' => (string) ($opt['label'] ?? ($opt['value'] ?? '')),
+            ];
         } else {
             $formattedOptions[] = ['value' => (string) $opt, 'label' => (string) $opt];
         }
@@ -36,23 +41,59 @@
     }
 
     $initialSelected = $selected;
+
+    // Precalculate server-side label fallback
+    $selectedLabelFallback = $placeholder;
+    if ($initialSelected !== null && !is_array($initialSelected)) {
+        foreach ($formattedOptions as $opt) {
+            if ((string)$opt['value'] === (string)$initialSelected) {
+                $selectedLabelFallback = $opt['label'];
+                break;
+            }
+        }
+    } elseif (is_array($initialSelected) && !empty($initialSelected)) {
+        $selectedLabelFallback = count($initialSelected) . ' opsi dipilih';
+    }
+
+    $sizeClasses = match($size) {
+        'sm' => 'min-h-[36px] py-1.5 px-3 text-xs font-semibold rounded-xl',
+        default => 'min-h-[42px] py-2 px-3.5 text-sm rounded-lg',
+    };
+
+    $itemSizeClasses = match($size) {
+        'sm' => 'py-2 px-3 text-xs font-semibold',
+        default => 'py-2.5 px-3.5 text-sm font-medium',
+    };
 @endphp
 
 <div
     x-data="{
         open: false,
-        disabled: {{ $isDisabled ? 'true' : 'false' }},
-        variant: '{{ $variant }}',
-        selected: {{ is_array($initialSelected) ? json_encode($initialSelected) : json_encode($initialSelected ? [$initialSelected] : []) }},
-        singleValue: {{ is_string($initialSelected) ? json_encode($initialSelected) : 'null' }},
+        disabled: @js($isDisabled),
+        variant: @js($variant),
+        options: @js($formattedOptions),
+        selected: @js(is_array($initialSelected) ? $initialSelected : ($initialSelected ? [$initialSelected] : [])),
+        singleValue: @js($initialSelected !== null && !is_array($initialSelected) ? (string)$initialSelected : null),
+        autoSubmit: @js($autoSubmit),
         toggle() {
             if (!this.disabled) {
                 this.open = !this.open;
             }
         },
         selectSingle(val) {
-            this.singleValue = val;
+            this.singleValue = String(val);
             this.open = false;
+            this.$dispatch('change', this.singleValue);
+            if (this.autoSubmit) {
+                this.$nextTick(() => {
+                    this.$el.closest('form')?.submit();
+                });
+            }
+        },
+        getSingleLabel() {
+            if (this.singleValue === null || this.singleValue === undefined || this.singleValue === '') return '{{ $placeholder }}';
+            const opt = this.options.find(o => String(o.value) === String(this.singleValue));
+            return opt ? opt.label : this.singleValue;
         },
         toggleMulti(val) {
             const index = this.selected.indexOf(val);
@@ -70,7 +111,7 @@
         },
         isSelected(val) {
             if (this.variant === 'single' || this.variant === 'radio') {
-                return this.singleValue === val;
+                return String(this.singleValue) === String(val);
             }
             return this.selected.includes(val);
         }
@@ -84,18 +125,22 @@
         </label>
     @endif
 
+    @if ($name)
+        <input type="hidden" name="{{ $name }}" :value="singleValue">
+    @endif
+
     <!-- Trigger Button -->
     <div
         @click="toggle()"
         :class="{
             'border-terracotta-500 ring-1 ring-terracotta-500': open,
-            'border-gray-300 hover:border-gray-400': !open && !disabled,
+            'border-gray-200 hover:border-gray-300': !open && !disabled,
             'border-gray-200 bg-gray-50/80 cursor-not-allowed': disabled
         }"
-        class="w-full min-h-[42px] px-3.5 py-2 flex items-center justify-between rounded-lg border bg-white shadow-2xs cursor-pointer transition duration-150 {{ $isDisabled ? 'border-gray-200 bg-gray-50/80 cursor-not-allowed' : '' }}"
+        class="w-full flex items-center justify-between border bg-white shadow-2xs cursor-pointer transition duration-150 {{ $sizeClasses }} {{ $isDisabled ? 'border-gray-200 bg-gray-50/80 cursor-not-allowed' : '' }}"
     >
         <!-- Value / Tags Display -->
-        <div class="flex flex-wrap items-center gap-1.5 text-sm overflow-hidden flex-1 mr-2">
+        <div class="flex flex-wrap items-center gap-1.5 overflow-hidden flex-1 mr-2">
             @if ($variant === 'multi')
                 <template x-if="selected.length === 0">
                     <span class="text-gray-400">{{ $placeholder }}</span>
@@ -120,22 +165,13 @@
                 @endif
             @else
                 <!-- Single & Radio -->
-                <template x-if="!singleValue">
-                    <span class="text-gray-400">{{ $placeholder }}</span>
-                </template>
-                <template x-if="singleValue">
-                    <span :class="disabled ? 'text-gray-400' : 'text-gray-900'" x-text="singleValue"></span>
-                </template>
-
-                @if ($isDisabled && $initialSelected)
-                    <span class="text-gray-400">{{ is_string($initialSelected) ? $initialSelected : ($initialSelected[0] ?? '') }}</span>
-                @endif
+                <span :class="disabled ? 'text-gray-400' : 'text-gray-800 truncate'" x-text="getSingleLabel()">{{ $selectedLabelFallback }}</span>
             @endif
         </div>
 
         <!-- Chevron Icon -->
-        <div class="text-gray-400 transition-transform duration-150" :class="{ 'rotate-180': open }">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="text-gray-400 transition-transform duration-150 shrink-0" :class="{ 'rotate-180': open }">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
         </div>
@@ -144,6 +180,7 @@
     <!-- Dropdown Menu / Option List -->
     <div
         x-show="open"
+        x-cloak
         x-transition:enter="transition ease-out duration-100"
         x-transition:enter-start="transform opacity-0 scale-95"
         x-transition:enter-end="transform opacity-100 scale-100"
@@ -151,7 +188,7 @@
         x-transition:leave-start="transform opacity-100 scale-100"
         x-transition:leave-end="transform opacity-0 scale-95"
         style="display: none;"
-        class="absolute z-50 mt-1 w-full bg-white rounded-xl border border-gray-200 shadow-lg py-1 text-sm overflow-hidden"
+        class="absolute z-50 mt-1.5 w-full min-w-[200px] bg-white rounded-xl border border-gray-200 shadow-xl py-1 text-xs sm:text-sm overflow-hidden"
     >
         @foreach ($formattedOptions as $opt)
             @php $optVal = $opt['value']; $optLabel = $opt['label']; @endphp
@@ -159,15 +196,15 @@
             @if ($variant === 'single')
                 <!-- Single Select Item with Checkmark -->
                 <div
-                    @click="selectSingle('{{ $optVal }}')"
+                    @click="selectSingle('{{ addslashes($optVal) }}')"
                     :class="{
-                        'bg-gray-100 text-gray-900 font-medium': singleValue === '{{ $optVal }}',
-                        'text-gray-700 hover:bg-gray-50': singleValue !== '{{ $optVal }}'
+                        'bg-terracotta-50/80 text-terracotta-800 font-bold': singleValue === '{{ addslashes($optVal) }}',
+                        'text-gray-700 hover:bg-gray-50': singleValue !== '{{ addslashes($optVal) }}'
                     }"
-                    class="flex items-center justify-between px-3.5 py-2.5 cursor-pointer transition"
+                    class="flex items-center justify-between {{ $itemSizeClasses }} cursor-pointer transition"
                 >
-                    <span>{{ $optLabel }}</span>
-                    <span x-show="singleValue === '{{ $optVal }}'">
+                    <span class="truncate">{{ $optLabel }}</span>
+                    <span x-show="singleValue === '{{ addslashes($optVal) }}'">
                         <svg class="w-4 h-4 text-terracotta-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                         </svg>
@@ -177,36 +214,36 @@
             @elseif ($variant === 'multi')
                 <!-- Multi Select Item with Checkbox -->
                 <div
-                    @click="toggleMulti('{{ $optVal }}')"
-                    class="flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer hover:bg-gray-50 text-gray-700 transition"
+                    @click="toggleMulti('{{ addslashes($optVal) }}')"
+                    class="flex items-center gap-2.5 {{ $itemSizeClasses }} cursor-pointer hover:bg-gray-50 text-gray-700 transition"
                 >
                     <div
-                        :class="isSelected('{{ $optVal }}') ? 'bg-terracotta-500 border-terracotta-500 text-white' : 'border-gray-300 bg-white'"
-                        class="w-4 h-4 rounded border flex items-center justify-center transition"
+                        :class="isSelected('{{ addslashes($optVal) }}') ? 'bg-terracotta-500 border-terracotta-500 text-white' : 'border-gray-300 bg-white'"
+                        class="w-4 h-4 rounded border flex items-center justify-center transition shrink-0"
                     >
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                         </svg>
                     </div>
-                    <span class="text-gray-800">{{ $optLabel }}</span>
+                    <span class="text-gray-800 truncate">{{ $optLabel }}</span>
                 </div>
 
             @elseif ($variant === 'radio')
                 <!-- Radio Selection Item -->
                 <div
-                    @click="selectSingle('{{ $optVal }}')"
-                    class="flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer hover:bg-gray-50 text-gray-700 transition"
+                    @click="selectSingle('{{ addslashes($optVal) }}')"
+                    class="flex items-center gap-2.5 {{ $itemSizeClasses }} cursor-pointer hover:bg-gray-50 text-gray-700 transition"
                 >
                     <div
-                        :class="singleValue === '{{ $optVal }}' ? 'border-terracotta-500' : 'border-gray-300'"
-                        class="w-4 h-4 rounded-full border flex items-center justify-center transition"
+                        :class="singleValue === '{{ addslashes($optVal) }}' ? 'border-terracotta-500' : 'border-gray-300'"
+                        class="w-4 h-4 rounded-full border flex items-center justify-center transition shrink-0"
                     >
                         <div
-                            :class="singleValue === '{{ $optVal }}' ? 'bg-terracotta-500' : 'bg-transparent'"
+                            :class="singleValue === '{{ addslashes($optVal) }}' ? 'bg-terracotta-500' : 'bg-transparent'"
                             class="w-2 h-2 rounded-full transition"
                         ></div>
                     </div>
-                    <span class="text-gray-800">{{ $optLabel }}</span>
+                    <span class="text-gray-800 truncate">{{ $optLabel }}</span>
                 </div>
             @endif
         @endforeach

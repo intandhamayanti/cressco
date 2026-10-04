@@ -41,20 +41,20 @@
             'badge' => null,
         ],
         [
-            'id' => 'chart-card',
-            'label' => 'Chart & Card',
-            'route' => '#',
+            'id' => 'card-chart',
+            'label' => 'Card & Chart',
+            'route' => url('/design-system/card-chart'),
             'icon' => 'chart',
-            'badge' => 'Soon',
-            'disabled' => true,
+            'badge' => null,
+            'disabled' => false,
         ],
         [
             'id' => 'other',
             'label' => 'Other',
-            'route' => '#',
+            'route' => url('/design-system/other'),
             'icon' => 'other',
-            'badge' => 'Soon',
-            'disabled' => true,
+            'badge' => null,
+            'disabled' => false,
         ],
     ];
 @endphp

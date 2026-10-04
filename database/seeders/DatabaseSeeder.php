@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Assessment;
-use App\Models\AssessmentResult;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\BranchUser;
@@ -21,9 +19,7 @@ use App\Models\Tenant;
 use App\Models\TenantSetting;
 use App\Models\TutorAssignment;
 use App\Models\TutorAttendance;
-use App\Models\TutorReplacement;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -47,17 +43,17 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        // 2. Tenant
+        // 2. Tenant: Prime Academy Tutoring Center
         $tenant = Tenant::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Bimbel Cressco Academy',
-            'slug' => 'cressco-academy',
+            'name' => 'Prime Academy Tutoring Center',
+            'slug' => 'prime-academy',
             'status' => 'active',
             'logo' => null,
-            'description' => 'Bimbingan Belajar Berkualitas SD, SMP, dan SMA',
-            'address' => 'Jl. Pemuda No. 45, Surabaya',
-            'phone' => '081234567890',
-            'email' => 'contact@cressco-academy.com',
+            'description' => 'Bimbingan Belajar Unggulan SD, SMP, SMA & Persiapan UTBK SNBT',
+            'address' => 'Jl. Ijen No. 12, Malang, Jawa Timur',
+            'phone' => '0341-551234',
+            'email' => 'admin@primeacademy.id',
         ]);
 
         // Tenant Settings
@@ -82,24 +78,44 @@ class DatabaseSeeder extends Seeder
             'value' => ['code' => 'IDR', 'symbol' => 'Rp'],
         ]);
 
-        // 3. Branches
-        $branchPusat = Branch::create([
+        // 3. Branches across Indonesia (Malang, Makassar, Semarang, Bandung)
+        $branchMalang = Branch::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'name' => 'Cabang Surabaya Pusat',
-            'code' => 'SBY-01',
-            'address' => 'Jl. Basuki Rahmat No. 12, Surabaya',
-            'phone' => '081234567801',
+            'name' => 'Prime Academy - Malang',
+            'code' => 'MLG-01',
+            'address' => 'Jl. Ijen No. 12, Kota Malang',
+            'phone' => '0341-551234',
             'status' => 'active',
         ]);
 
-        $branchBarat = Branch::create([
+        $branchMakassar = Branch::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'name' => 'Cabang Surabaya Barat',
-            'code' => 'SBY-02',
-            'address' => 'Jl. HR Muhammad No. 88, Surabaya',
-            'phone' => '081234567802',
+            'name' => 'Prime Academy - Makassar',
+            'code' => 'MKS-01',
+            'address' => 'Jl. AP Pettarani No. 88, Makassar',
+            'phone' => '0411-884567',
+            'status' => 'active',
+        ]);
+
+        $branchSemarang = Branch::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'name' => 'Prime Academy - Semarang',
+            'code' => 'SMG-01',
+            'address' => 'Jl. Pandanaran No. 45, Semarang',
+            'phone' => '024-8419876',
+            'status' => 'active',
+        ]);
+
+        $branchBandung = Branch::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'name' => 'Prime Academy - Bandung',
+            'code' => 'BDG-01',
+            'address' => 'Jl. Ir. H. Djuanda (Dago) No. 24, Bandung',
+            'phone' => '022-4231122',
             'status' => 'active',
         ]);
 
@@ -115,22 +131,33 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $adminPusat = User::create([
+        $adminMalang = User::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
             'name' => 'Siti Rahmawati',
-            'email' => 'admin.pusat@cressco.test',
+            'email' => 'admin.malang@cressco.test',
             'email_verified_at' => now(),
             'password' => Hash::make('Password123!'),
             'role' => 'admin',
             'status' => 'active',
         ]);
 
-        $adminBarat = User::create([
+        $adminMakassar = User::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
             'name' => 'Rizky Ramadhan',
-            'email' => 'admin.barat@cressco.test',
+            'email' => 'admin.makassar@cressco.test',
+            'email_verified_at' => now(),
+            'password' => Hash::make('Password123!'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $adminSemarang = User::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'name' => 'Nurul Aini',
+            'email' => 'admin.semarang@cressco.test',
             'email_verified_at' => now(),
             'password' => Hash::make('Password123!'),
             'role' => 'admin',
@@ -170,106 +197,117 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+        $tutorSarah = User::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'name' => 'Sarah Wijaya, S.Pd.',
+            'email' => 'tutor.sarah@cressco.test',
+            'email_verified_at' => now(),
+            'password' => Hash::make('Password123!'),
+            'role' => 'tutor',
+            'status' => 'active',
+        ]);
+
         // 5. BranchUser explicit assignments for Admins
         BranchUser::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'user_id' => $adminPusat->id,
+            'branch_id' => $branchMalang->id,
+            'user_id' => $adminMalang->id,
         ]);
 
         BranchUser::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
-            'user_id' => $adminPusat->id,
+            'branch_id' => $branchMakassar->id,
+            'user_id' => $adminMakassar->id,
         ]);
 
         BranchUser::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
-            'user_id' => $adminBarat->id,
+            'branch_id' => $branchSemarang->id,
+            'user_id' => $adminSemarang->id,
         ]);
 
-        // 6. Students
+        // 6. Students across branches
         $student1 = Student::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'name' => 'Andi Pratama',
             'date_of_birth' => '2008-05-14',
             'gender' => 'Laki-laki',
             'phone' => '081311223344',
-            'address' => 'Jl. Gubeng Kertajaya No. 15, Surabaya',
+            'address' => 'Jl. Ijen No. 45, Malang',
             'parent_name' => 'Joko Pratama',
             'parent_phone' => '081299001122',
             'notes' => 'Target masuk ITB Teknik Informatika',
-            'joined_at' => '2026-01-10',
+            'joined_at' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
         $student2 = Student::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'name' => 'Nadia Amanda',
             'date_of_birth' => '2008-08-20',
             'gender' => 'Perempuan',
             'phone' => '081322334455',
-            'address' => 'Jl. Dharmawangsa No. 22, Surabaya',
+            'address' => 'Jl. Soekarno Hatta No. 22, Malang',
             'parent_name' => 'Hendra Amanda',
             'parent_phone' => '081299003344',
-            'notes' => 'Target masuk Kedokteran UNAIR',
-            'joined_at' => '2026-01-12',
+            'notes' => 'Target masuk Kedokteran UB',
+            'joined_at' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
         $student3 = Student::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'name' => 'Dimas Setiawan',
+            'branch_id' => $branchMakassar->id,
+            'name' => 'Fajar Nugraha',
             'date_of_birth' => '2008-11-03',
             'gender' => 'Laki-laki',
             'phone' => '081333445566',
-            'address' => 'Jl. Manyar Sabrangan No. 5, Surabaya',
+            'address' => 'Jl. Pettarani No. 5, Makassar',
             'parent_name' => 'Agus Setiawan',
             'parent_phone' => '081299005566',
             'notes' => 'Perlu bimbingan ekstra Matematika',
-            'joined_at' => '2026-01-15',
+            'joined_at' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
         $student4 = Student::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
+            'branch_id' => $branchSemarang->id,
             'name' => 'Rina Marlina',
             'date_of_birth' => '2011-03-25',
             'gender' => 'Perempuan',
             'phone' => '081344556677',
-            'address' => 'Jl. Darmo Permai No. 8, Surabaya',
+            'address' => 'Jl. Pemuda No. 8, Semarang',
             'parent_name' => 'Bambang Marlina',
             'parent_phone' => '081299007788',
             'notes' => 'Siswa SMP berprestasi',
-            'joined_at' => '2026-01-18',
+            'joined_at' => now()->subMonth()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
         $student5 = Student::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
-            'name' => 'Fajar Nugraha',
+            'branch_id' => $branchBandung->id,
+            'name' => 'Aisyah Rahma',
             'date_of_birth' => '2011-07-19',
-            'gender' => 'Laki-laki',
+            'gender' => 'Perempuan',
             'phone' => '081355667788',
-            'address' => 'Jl. Bukit Darmo Golf No. 10, Surabaya',
-            'parent_name' => 'Dedi Nugraha',
+            'address' => 'Jl. Dago No. 10, Bandung',
+            'parent_name' => 'Dedi Rahma',
             'parent_phone' => '081299009900',
-            'notes' => 'Persiapan ujian sekolah',
-            'joined_at' => '2026-01-20',
+            'notes' => 'Persiapan ujian sekolah & olimpiade',
+            'joined_at' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
@@ -277,7 +315,7 @@ class DatabaseSeeder extends Seeder
         $classMatematika = Classes::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'name' => '12 IPA - Matematika Intensif',
             'subject' => 'Matematika',
             'level' => '12 SMA',
@@ -288,7 +326,7 @@ class DatabaseSeeder extends Seeder
         $classFisika = Classes::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'name' => '12 IPA - Fisika UTBK',
             'subject' => 'Fisika',
             'level' => '12 SMA',
@@ -299,7 +337,7 @@ class DatabaseSeeder extends Seeder
         $classInggris = Classes::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
+            'branch_id' => $branchMakassar->id,
             'name' => '9 SMP - Bahasa Inggris Reguler',
             'subject' => 'Bahasa Inggris',
             'level' => '9 SMP',
@@ -307,74 +345,55 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+        $classKimia = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branchSemarang->id,
+            'name' => '11 IPA - Kimia Dasar',
+            'subject' => 'Kimia',
+            'level' => '11 SMA',
+            'capacity' => 18,
+            'status' => 'active',
+        ]);
+
         // 8. Enrollments
         $enrollment1 = Enrollment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'student_id' => $student1->id,
             'class_id' => $classMatematika->id,
-            'started_at' => '2026-01-10',
+            'started_at' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
         $enrollment2 = Enrollment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'student_id' => $student2->id,
             'class_id' => $classMatematika->id,
-            'started_at' => '2026-01-12',
+            'started_at' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
         $enrollment3 = Enrollment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMakassar->id,
             'student_id' => $student3->id,
-            'class_id' => $classMatematika->id,
-            'started_at' => '2026-01-15',
+            'class_id' => $classInggris->id,
+            'started_at' => now()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
         $enrollment4 = Enrollment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'student_id' => $student1->id,
-            'class_id' => $classFisika->id,
-            'started_at' => '2026-01-10',
-            'status' => 'active',
-        ]);
-
-        $enrollment5 = Enrollment::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'student_id' => $student2->id,
-            'class_id' => $classFisika->id,
-            'started_at' => '2026-01-12',
-            'status' => 'active',
-        ]);
-
-        $enrollment6 = Enrollment::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
+            'branch_id' => $branchSemarang->id,
             'student_id' => $student4->id,
-            'class_id' => $classInggris->id,
-            'started_at' => '2026-01-18',
-            'status' => 'active',
-        ]);
-
-        $enrollment7 = Enrollment::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
-            'student_id' => $student5->id,
-            'class_id' => $classInggris->id,
-            'started_at' => '2026-01-20',
+            'class_id' => $classKimia->id,
+            'started_at' => now()->subMonth()->startOfMonth()->toDateString(),
             'status' => 'active',
         ]);
 
@@ -382,30 +401,40 @@ class DatabaseSeeder extends Seeder
         TutorAssignment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'tutor_id' => $tutorAhmad->id,
             'class_id' => $classMatematika->id,
-            'started_at' => '2026-01-01',
+            'started_at' => now()->startOfYear()->toDateString(),
             'status' => 'active',
         ]);
 
         TutorAssignment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'tutor_id' => $tutorDewi->id,
             'class_id' => $classFisika->id,
-            'started_at' => '2026-01-01',
+            'started_at' => now()->startOfYear()->toDateString(),
             'status' => 'active',
         ]);
 
         TutorAssignment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
+            'branch_id' => $branchMakassar->id,
             'tutor_id' => $tutorBambang->id,
             'class_id' => $classInggris->id,
-            'started_at' => '2026-01-01',
+            'started_at' => now()->startOfYear()->toDateString(),
+            'status' => 'active',
+        ]);
+
+        TutorAssignment::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branchSemarang->id,
+            'tutor_id' => $tutorSarah->id,
+            'class_id' => $classKimia->id,
+            'started_at' => now()->startOfYear()->toDateString(),
             'status' => 'active',
         ]);
 
@@ -455,42 +484,28 @@ class DatabaseSeeder extends Seeder
         $schedule1 = Schedule::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'class_id' => $classMatematika->id,
             'scheduled_tutor_id' => $tutorAhmad->id,
-            'day_of_week' => 1, // Monday
+            'day_of_week' => 1,
             'start_time' => '16:00:00',
             'end_time' => '17:30:00',
-            'room' => 'Ruang A1',
-            'starts_on' => '2026-01-01',
+            'room' => 'Ruang M-1',
+            'starts_on' => now()->startOfYear()->toDateString(),
             'status' => 'active',
         ]);
 
         $schedule2 = Schedule::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'class_id' => $classFisika->id,
             'scheduled_tutor_id' => $tutorDewi->id,
-            'day_of_week' => 3, // Wednesday
+            'day_of_week' => 3,
             'start_time' => '16:00:00',
             'end_time' => '17:30:00',
-            'room' => 'Ruang A2',
-            'starts_on' => '2026-01-01',
-            'status' => 'active',
-        ]);
-
-        $schedule3 = Schedule::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
-            'class_id' => $classInggris->id,
-            'scheduled_tutor_id' => $tutorBambang->id,
-            'day_of_week' => 5, // Friday
-            'start_time' => '15:30:00',
-            'end_time' => '17:00:00',
-            'room' => 'Ruang B1',
-            'starts_on' => '2026-01-01',
+            'room' => 'Ruang M-2',
+            'starts_on' => now()->startOfYear()->toDateString(),
             'status' => 'active',
         ]);
 
@@ -498,15 +513,15 @@ class DatabaseSeeder extends Seeder
         $session1 = TeachingSession::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'schedule_id' => $schedule1->id,
             'class_id' => $classMatematika->id,
             'scheduled_tutor_id' => $tutorAhmad->id,
             'actual_tutor_id' => $tutorAhmad->id,
-            'session_date' => '2026-02-02',
+            'session_date' => now()->toDateString(),
             'start_time' => '16:00:00',
             'end_time' => '17:30:00',
-            'room' => 'Ruang A1',
+            'room' => 'Ruang M-1',
             'status' => 'completed',
             'material' => 'Kalkulus: Turunan Fungsi Aljabar',
             'notes' => 'Semua materi tersampaikan dengan baik dan latihan soal tuntas.',
@@ -515,271 +530,149 @@ class DatabaseSeeder extends Seeder
         $session2 = TeachingSession::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'schedule_id' => $schedule2->id,
             'class_id' => $classFisika->id,
             'scheduled_tutor_id' => $tutorDewi->id,
             'actual_tutor_id' => $tutorBambang->id,
-            'session_date' => '2026-02-04',
+            'session_date' => now()->toDateString(),
             'start_time' => '16:00:00',
             'end_time' => '17:30:00',
-            'room' => 'Ruang A2',
+            'room' => 'Ruang M-2',
             'status' => 'completed',
             'material' => 'Kinematika Gerak Lurus Beraturan dan Berubah Beraturan',
-            'notes' => 'Tutor pengganti (Bambang) hadir tepat waktu menggantikan Dewi.',
+            'notes' => 'Tutor pengganti (Bambang) hadir tepat waktu.',
         ]);
 
-        $session3 = TeachingSession::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'schedule_id' => $schedule1->id,
-            'class_id' => $classMatematika->id,
-            'scheduled_tutor_id' => $tutorAhmad->id,
-            'actual_tutor_id' => null,
-            'session_date' => '2026-02-09',
-            'start_time' => '16:00:00',
-            'end_time' => '17:30:00',
-            'room' => 'Ruang A1',
-            'status' => 'scheduled',
-            'material' => 'Aplikasi Turunan: Nilai Maksimum & Minimum',
-            'notes' => null,
-        ]);
-
-        // 14. Tutor Replacement Record (for Session 2)
-        $tutorReplacement = TutorReplacement::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'teaching_session_id' => $session2->id,
-            'scheduled_tutor_id' => $tutorDewi->id,
-            'previous_actual_tutor_id' => null,
-            'replacement_tutor_id' => $tutorBambang->id,
-            'reason' => 'Tutor Dewi sedang berhalangan hadir karena urusan keluarga.',
-            'changed_by' => $adminPusat->id,
-            'changed_at' => Carbon::parse('2026-02-03 14:00:00'),
-        ]);
-
-        // 15. Attendances
-        // Session 1 attendances
+        // 14. Attendances
         StudentAttendance::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'teaching_session_id' => $session1->id,
             'student_id' => $student1->id,
             'status' => 'hadir',
             'note' => null,
-            'recorded_at' => Carbon::parse('2026-02-02 17:35:00'),
+            'recorded_at' => now(),
             'recorded_by' => $tutorAhmad->id,
         ]);
 
         StudentAttendance::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'teaching_session_id' => $session1->id,
             'student_id' => $student2->id,
             'status' => 'hadir',
             'note' => null,
-            'recorded_at' => Carbon::parse('2026-02-02 17:35:00'),
-            'recorded_by' => $tutorAhmad->id,
-        ]);
-
-        StudentAttendance::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'teaching_session_id' => $session1->id,
-            'student_id' => $student3->id,
-            'status' => 'izin',
-            'note' => 'Izin sakit flu',
-            'recorded_at' => Carbon::parse('2026-02-02 17:35:00'),
+            'recorded_at' => now(),
             'recorded_by' => $tutorAhmad->id,
         ]);
 
         TutorAttendance::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'teaching_session_id' => $session1->id,
             'tutor_id' => $tutorAhmad->id,
             'status' => 'present',
-            'recorded_at' => Carbon::parse('2026-02-02 17:35:00'),
+            'recorded_at' => now(),
             'source' => 'student_attendance_submission',
         ]);
 
-        // Session 2 attendances
-        StudentAttendance::create([
+        // 15. Payments across branches
+        Payment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'teaching_session_id' => $session2->id,
-            'student_id' => $student1->id,
-            'status' => 'hadir',
-            'note' => null,
-            'recorded_at' => Carbon::parse('2026-02-04 17:35:00'),
-            'recorded_by' => $tutorBambang->id,
-        ]);
-
-        StudentAttendance::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'teaching_session_id' => $session2->id,
-            'student_id' => $student2->id,
-            'status' => 'hadir',
-            'note' => null,
-            'recorded_at' => Carbon::parse('2026-02-04 17:35:00'),
-            'recorded_by' => $tutorBambang->id,
-        ]);
-
-        TutorAttendance::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'teaching_session_id' => $session2->id,
-            'tutor_id' => $tutorBambang->id,
-            'status' => 'present',
-            'recorded_at' => Carbon::parse('2026-02-04 17:35:00'),
-            'source' => 'student_attendance_submission',
-        ]);
-
-        // 16. Assessments and Results
-        $assessmentQuiz = Assessment::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'class_id' => $classMatematika->id,
-            'name' => 'Quiz 1 - Turunan Aljabar',
-            'type' => 'quiz',
-            'material' => 'Turunan dasar dan aturan rantai',
-            'assessment_date' => '2026-02-02',
-            'max_score' => 100.00,
-            'notes' => '10 soal pilihan ganda dan 2 soal essay',
-            'created_by' => $tutorAhmad->id,
-        ]);
-
-        AssessmentResult::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'assessment_id' => $assessmentQuiz->id,
-            'student_id' => $student1->id,
-            'score' => 95.00,
-            'notes' => 'Sangat memahami konsep aturan rantai',
-        ]);
-
-        AssessmentResult::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'assessment_id' => $assessmentQuiz->id,
-            'student_id' => $student2->id,
-            'score' => 85.00,
-            'notes' => 'Perlu latihan lebih teliti pada perhitungan',
-        ]);
-
-        AssessmentResult::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
-            'assessment_id' => $assessmentQuiz->id,
-            'student_id' => $student3->id,
-            'score' => 0.00,
-            'notes' => 'Susulan diperlukan (izin sakit)',
-        ]);
-
-        // 17. Payments
-        $payment1 = Payment::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'student_id' => $student1->id,
             'enrollment_id' => $enrollment1->id,
-            'period' => '2026-02',
-            'amount' => 500000.00,
-            'due_date' => '2026-02-10',
-            'paid_at' => Carbon::parse('2026-02-05 10:00:00'),
+            'period' => now()->format('Y-m'),
+            'amount' => 750000.00,
+            'due_date' => now()->endOfMonth()->toDateString(),
+            'paid_at' => now(),
             'status' => 'lunas',
             'notes' => 'Transfer via BCA',
-            'recorded_by' => $adminPusat->id,
+            'recorded_by' => $adminMalang->id,
         ]);
 
         Payment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'student_id' => $student2->id,
             'enrollment_id' => $enrollment2->id,
-            'period' => '2026-02',
-            'amount' => 500000.00,
-            'due_date' => '2026-02-10',
+            'period' => now()->format('Y-m'),
+            'amount' => 750000.00,
+            'due_date' => now()->endOfMonth()->toDateString(),
             'paid_at' => null,
             'status' => 'belum_bayar',
-            'notes' => 'Menunggu konfirmasi orang tua',
-            'recorded_by' => $adminPusat->id,
+            'notes' => 'Menunggu konfirmasi pembayaran orang tua',
+            'recorded_by' => $adminMalang->id,
         ]);
 
         Payment::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchBarat->id,
-            'student_id' => $student4->id,
-            'enrollment_id' => $enrollment6->id,
-            'period' => '2026-02',
-            'amount' => 450000.00,
-            'due_date' => '2026-02-10',
-            'paid_at' => Carbon::parse('2026-02-08 11:30:00'),
-            'status' => 'menunggu_verifikasi',
-            'notes' => 'Bukti transfer diunggah lewat admin',
-            'recorded_by' => $adminBarat->id,
+            'branch_id' => $branchMakassar->id,
+            'student_id' => $student3->id,
+            'enrollment_id' => $enrollment3->id,
+            'period' => now()->format('Y-m'),
+            'amount' => 600000.00,
+            'due_date' => now()->endOfMonth()->toDateString(),
+            'paid_at' => now()->subDay(),
+            'status' => 'lunas',
+            'notes' => 'Transfer Bank Mandiri',
+            'recorded_by' => $adminMakassar->id,
         ]);
 
-        // 18. Honor Calculation
+        Payment::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branchSemarang->id,
+            'student_id' => $student4->id,
+            'enrollment_id' => $enrollment4->id,
+            'period' => now()->format('Y-m'),
+            'amount' => 650000.00,
+            'due_date' => now()->endOfMonth()->toDateString(),
+            'paid_at' => null,
+            'status' => 'terlambat',
+            'notes' => 'Reminder WhatsApp terkirim',
+            'recorded_by' => $adminSemarang->id,
+        ]);
+
+        // 16. Honor Calculations
         HonorCalculation::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'branch_id' => $branchPusat->id,
+            'branch_id' => $branchMalang->id,
             'tutor_id' => $tutorAhmad->id,
             'honor_scheme_id' => $honorSchemeReguler->id,
-            'period_start' => '2026-02-01',
-            'period_end' => '2026-02-28',
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
             'method' => 'per_session',
-            'base_amount' => 600000.00,
-            'adjustment_amount' => 50000.00,
-            'final_amount' => 650000.00,
+            'base_amount' => 1200000.00,
+            'adjustment_amount' => 100000.00,
+            'final_amount' => 1300000.00,
             'status' => 'final',
-            'adjustment_reason' => 'Bonus apresiasi kedisiplinan dan feedback siswa sangat baik',
-            'finalized_at' => Carbon::parse('2026-02-28 20:00:00'),
+            'adjustment_reason' => 'Bonus apresiasi kehadiran penuh',
+            'finalized_at' => now(),
             'paid_at' => null,
-            'calculated_by' => $adminPusat->id,
+            'calculated_by' => $adminMalang->id,
             'finalized_by' => $owner->id,
         ]);
 
-        // 19. Audit Logs
+        // 17. Audit Logs
         AuditLog::create([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenant->id,
-            'actor_user_id' => $adminPusat->id,
+            'actor_user_id' => $adminMalang->id,
             'action' => 'payment.record',
             'entity_type' => Payment::class,
-            'entity_id' => $payment1->id,
+            'entity_id' => Str::uuid(),
             'old_values' => null,
-            'new_values' => ['status' => 'lunas', 'amount' => 500000.00],
+            'new_values' => ['status' => 'lunas', 'amount' => 750000.00],
             'metadata' => ['method' => 'manual_transfer'],
-        ]);
-
-        AuditLog::create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenant->id,
-            'actor_user_id' => $adminPusat->id,
-            'action' => 'tutor_replacement.create',
-            'entity_type' => TutorReplacement::class,
-            'entity_id' => $tutorReplacement->id,
-            'old_values' => null,
-            'new_values' => ['scheduled_tutor_id' => $tutorDewi->id, 'replacement_tutor_id' => $tutorBambang->id],
-            'metadata' => ['session_id' => $session2->id],
         ]);
     }
 }

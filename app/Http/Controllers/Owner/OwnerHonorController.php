@@ -1,0 +1,348 @@
+<?php
+
+namespace App\Http\Controllers\Owner;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Owner\StoreHonorSchemeRequest;
+use App\Http\Requests\Owner\UpdateHonorSchemeRequest;
+use App\Models\Branch;
+use App\Models\HonorAssignment;
+use App\Models\HonorCalculation;
+use App\Models\HonorScheme;
+use App\Models\TeachingSession;
+use App\Models\User;
+use App\Services\HonorCalculationService;
+use App\Services\TenantContext;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+
+class OwnerHonorController extends Controller
+{
+    public function __construct(
+        protected HonorCalculationService $honorService
+    ) {}
+
+    public function index(Request $request): View
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant) {
+            abort(403, 'Tenant context not found.');
+        }
+
+        Gate::authorize('viewAny', HonorCalculation::class);
+
+        $search = $request->query('search');
+        $branchId = $request->query('branch_id', 'all');
+        $status = $request->query('status', 'all');
+        $period = $request->query('period'); // e.g. 2026-02 or 2026-10
+
+        $query = HonorCalculation::where('tenant_id', $tenant->id)
+            ->with(['tutor', 'honorScheme', 'branch', 'calculatedBy', 'finalizedBy']);
+
+        if ($search) {
+            $query->whereHas('tutor', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($branchId && $branchId !== 'all') {
+            $query->where('branch_id', $branchId);
+        }
+
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($period) {
+            $query->where(function ($q) use ($period) {
+                $q->where('period_start', 'like', "{$period}%")
+                    ->orWhere('period_end', 'like', "{$period}%");
+            });
+        }
+
+        $calculations = $query->latest('period_start')->get();
+
+        // Schemes in tenant
+        $schemes = HonorScheme::where('tenant_id', $tenant->id)
+            ->with(['assignments.tutor', 'createdBy'])
+            ->latest()
+            ->get();
+
+        $defaultSchemeAssignment = HonorAssignment::where('tenant_id', $tenant->id)
+            ->where('assignment_type', 'default')
+            ->first();
+        $defaultSchemeId = $defaultSchemeAssignment?->honor_scheme_id;
+
+        // Metrics
+        $totalPaidAmount = HonorCalculation::where('tenant_id', $tenant->id)->where('status', 'paid')->sum('final_amount');
+        $pendingFinalAmount = HonorCalculation::where('tenant_id', $tenant->id)->where('status', 'final')->sum('final_amount');
+        $pendingFinalCount = HonorCalculation::where('tenant_id', $tenant->id)->where('status', 'final')->count();
+        $activeSchemesCount = HonorScheme::where('tenant_id', $tenant->id)->where('status', 'active')->count();
+        $totalCompletedSessions = TeachingSession::where('tenant_id', $tenant->id)->where('status', 'completed')->count();
+
+        $branches = Branch::where('tenant_id', $tenant->id)->orderBy('name')->get();
+        $tutors = User::where('tenant_id', $tenant->id)->where('role', 'tutor')->where('status', 'active')->orderBy('name')->get();
+
+        return view('owner.honors.index', compact(
+            'tenant',
+            'calculations',
+            'schemes',
+            'defaultSchemeId',
+            'branches',
+            'tutors',
+            'totalPaidAmount',
+            'pendingFinalAmount',
+            'pendingFinalCount',
+            'activeSchemesCount',
+            'totalCompletedSessions',
+            'search',
+            'branchId',
+            'status',
+            'period'
+        ));
+    }
+
+    public function show(Request $request, HonorCalculation $calculation): View
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant || $calculation->tenant_id !== $tenant->id) {
+            abort(404, 'Data perhitungan honor tidak ditemukan.');
+        }
+
+        Gate::authorize('view', $calculation);
+
+        $calculation->load(['tutor', 'honorScheme', 'branch', 'calculatedBy', 'finalizedBy']);
+
+        // Load actual teaching sessions for this tutor in the calculation period
+        $sessionsQuery = TeachingSession::where('tenant_id', $tenant->id)
+            ->where('actual_tutor_id', $calculation->tutor_id)
+            ->whereBetween('session_date', [$calculation->period_start, $calculation->period_end])
+            ->where('status', 'completed')
+            ->with(['class.branch', 'scheduledTutor'])
+            ->orderBy('session_date');
+
+        if ($calculation->branch_id) {
+            $sessionsQuery->where('branch_id', $calculation->branch_id);
+        }
+
+        $sessions = $sessionsQuery->get();
+
+        return view('owner.honors.show', compact('tenant', 'calculation', 'sessions'));
+    }
+
+    public function calculate(Request $request): RedirectResponse
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant) {
+            abort(403, 'Tenant context not found.');
+        }
+
+        Gate::authorize('create', HonorCalculation::class);
+
+        $validated = $request->validate([
+            'tutor_id' => ['nullable', 'uuid'],
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'branch_id' => ['nullable', 'uuid'],
+        ]);
+
+        if (! empty($validated['tutor_id'])) {
+            $tutor = User::where('tenant_id', $tenant->id)->where('id', $validated['tutor_id'])->firstOrFail();
+            $this->honorService->calculateForTutor(
+                $tutor,
+                $validated['period_start'],
+                $validated['period_end'],
+                $request->user(),
+                $validated['branch_id'] ?? null
+            );
+        } else {
+            $this->honorService->calculateForTenant(
+                $tenant->id,
+                $validated['period_start'],
+                $validated['period_end'],
+                $request->user()
+            );
+        }
+
+        return redirect()->route('owner.honors.index')->with('success', 'Perhitungan honor berhasil dijalankan.');
+    }
+
+    public function finalize(Request $request, HonorCalculation $calculation): RedirectResponse
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant || $calculation->tenant_id !== $tenant->id) {
+            abort(404, 'Data perhitungan honor tidak ditemukan.');
+        }
+
+        Gate::authorize('update', $calculation);
+
+        $validated = $request->validate([
+            'adjustment_amount' => ['nullable', 'numeric'],
+            'adjustment_reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $this->honorService->finalizeCalculation(
+            $calculation,
+            $request->user(),
+            isset($validated['adjustment_amount']) ? (float) $validated['adjustment_amount'] : null,
+            $validated['adjustment_reason'] ?? null
+        );
+
+        return back()->with('success', "Perhitungan honor {$calculation->tutor?->name} berhasil difinalisasi.");
+    }
+
+    public function markPaid(Request $request, HonorCalculation $calculation): RedirectResponse
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant || $calculation->tenant_id !== $tenant->id) {
+            abort(404, 'Data perhitungan honor tidak ditemukan.');
+        }
+
+        Gate::authorize('update', $calculation);
+
+        $this->honorService->markPaid($calculation);
+
+        return back()->with('success', "Honor tutor {$calculation->tutor?->name} sebesar Rp ".number_format($calculation->final_amount, 0, ',', '.').' berhasil ditandai telah dibayar (Lunas).');
+    }
+
+    public function storeScheme(StoreHonorSchemeRequest $request): RedirectResponse
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant) {
+            abort(403, 'Tenant context not found.');
+        }
+
+        Gate::authorize('create', HonorScheme::class);
+
+        $validated = $request->validated();
+
+        $scheme = HonorScheme::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'name' => $validated['name'],
+            'method' => $validated['method'],
+            'rate' => $validated['rate'] ?? null,
+            'percentage' => $validated['percentage'] ?? null,
+            'fixed_amount' => $validated['fixed_amount'] ?? null,
+            'effective_from' => $validated['effective_from'],
+            'effective_until' => $validated['effective_until'] ?? null,
+            'status' => $validated['status'] ?? 'active',
+            'created_by' => $request->user()->id,
+        ]);
+
+        if (! empty($validated['is_default'])) {
+            HonorAssignment::updateOrCreate(
+                [
+                    'tenant_id' => $tenant->id,
+                    'assignment_type' => 'default',
+                    'tutor_id' => null,
+                ],
+                [
+                    'id' => (string) Str::uuid(),
+                    'honor_scheme_id' => $scheme->id,
+                    'effective_from' => $scheme->effective_from,
+                    'effective_until' => $scheme->effective_until,
+                ]
+            );
+        }
+
+        return back()->with('success', "Skema honor '{$scheme->name}' berhasil ditambahkan.");
+    }
+
+    public function updateScheme(UpdateHonorSchemeRequest $request, HonorScheme $scheme): RedirectResponse
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant || $scheme->tenant_id !== $tenant->id) {
+            abort(404, 'Skema honor tidak ditemukan.');
+        }
+
+        Gate::authorize('update', $scheme);
+
+        $validated = $request->validated();
+
+        $scheme->update([
+            'name' => $validated['name'],
+            'method' => $validated['method'],
+            'rate' => $validated['rate'] ?? null,
+            'percentage' => $validated['percentage'] ?? null,
+            'fixed_amount' => $validated['fixed_amount'] ?? null,
+            'effective_from' => $validated['effective_from'],
+            'effective_until' => $validated['effective_until'] ?? null,
+            'status' => $validated['status'],
+        ]);
+
+        if (! empty($validated['is_default'])) {
+            HonorAssignment::updateOrCreate(
+                [
+                    'tenant_id' => $tenant->id,
+                    'assignment_type' => 'default',
+                    'tutor_id' => null,
+                ],
+                [
+                    'id' => (string) Str::uuid(),
+                    'honor_scheme_id' => $scheme->id,
+                    'effective_from' => $scheme->effective_from,
+                    'effective_until' => $scheme->effective_until,
+                ]
+            );
+        }
+
+        return back()->with('success', "Skema honor '{$scheme->name}' berhasil diperbarui.");
+    }
+
+    public function toggleSchemeStatus(Request $request, HonorScheme $scheme): RedirectResponse
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant || $scheme->tenant_id !== $tenant->id) {
+            abort(404, 'Skema honor tidak ditemukan.');
+        }
+
+        Gate::authorize('update', $scheme);
+
+        $newStatus = $scheme->status === 'active' ? 'inactive' : 'active';
+        $scheme->update(['status' => $newStatus]);
+
+        $statusLabel = $newStatus === 'active' ? 'diaktifkan' : 'dinonaktifkan';
+
+        return back()->with('success', "Skema honor '{$scheme->name}' berhasil {$statusLabel}.");
+    }
+
+    public function setDefaultScheme(Request $request, HonorScheme $scheme): RedirectResponse
+    {
+        $tenant = TenantContext::getTenant() ?? $request->user()->tenant;
+
+        if (! $tenant || $scheme->tenant_id !== $tenant->id) {
+            abort(404, 'Skema honor tidak ditemukan.');
+        }
+
+        Gate::authorize('update', $scheme);
+
+        HonorAssignment::updateOrCreate(
+            [
+                'tenant_id' => $tenant->id,
+                'assignment_type' => 'default',
+                'tutor_id' => null,
+            ],
+            [
+                'id' => (string) Str::uuid(),
+                'honor_scheme_id' => $scheme->id,
+                'effective_from' => $scheme->effective_from,
+                'effective_until' => $scheme->effective_until,
+            ]
+        );
+
+        return back()->with('success', "Skema honor '{$scheme->name}' berhasil dijadikan skema default.");
+    }
+}

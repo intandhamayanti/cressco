@@ -59,9 +59,28 @@ class ExampleTest extends TestCase
         $responseNav->assertSee('Storage Almost Full!');
         $responseNav->assertSee('Upgrade Pro');
 
-        // 6. UI Kit Internal Navigation Sidebar Test
-        $responseNav->assertSee('Style Guide');
-        $responseNav->assertSee('Components');
-        $responseNav->assertSee('Documentation');
+        // 6. Card & Chart Section Test
+        $responseCardChart = $this->get('/design-system/card-chart');
+        $responseCardChart->assertStatus(200);
+        $responseCardChart->assertSee('Card & Chart');
+        $responseCardChart->assertSee('Academic Overview');
+        $responseCardChart->assertSee('Payment Overview');
+        $responseCardChart->assertSee('Session Overview');
+        $responseCardChart->assertSee('Active Classes');
+        $responseCardChart->assertSee('Session Schedule');
+        $responseCardChart->assertSee('Bubble Chat');
+
+        // 7. Other Section Test
+        $responseOther = $this->get('/design-system/other');
+        $responseOther->assertStatus(200);
+        $responseOther->assertSee('Other');
+        $responseOther->assertSee('Table');
+        $responseOther->assertSee('Selected');
+        $responseOther->assertSee('Tags');
+        $responseOther->assertSee('Alert');
+        $responseOther->assertSee('Dates Agenda');
+        $responseOther->assertSee('Notification');
+        $responseOther->assertSee('Timeline Project');
+        $responseOther->assertSee('Schedule Categories');
     }
 }

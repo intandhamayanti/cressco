@@ -62,4 +62,68 @@ class Payment extends Model
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
+
+    public function isPaid(): bool
+    {
+        return $this->status === 'lunas';
+    }
+
+    public function isPendingVerification(): bool
+    {
+        return $this->status === 'menunggu_verifikasi';
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->status === 'terlambat' || ($this->status === 'belum_bayar' && $this->due_date && $this->due_date->isPast());
+    }
+
+    public function isUnpaid(): bool
+    {
+        return $this->status === 'belum_bayar';
+    }
+
+    /**
+     * Scope for verified/paid payments
+     */
+    public function scopePaid($query)
+    {
+        return $query->where('status', 'lunas');
+    }
+
+    /**
+     * Scope for payments waiting verification
+     */
+    public function scopePendingVerification($query)
+    {
+        return $query->where('status', 'menunggu_verifikasi');
+    }
+
+    /**
+     * Scope for overdue payments
+     */
+    public function scopeOverdue($query)
+    {
+        return $query->where('status', 'terlambat')
+            ->orWhere(function ($q) {
+                $q->where('status', 'belum_bayar')
+                    ->where('due_date', '<', now()->toDateString());
+            });
+    }
+
+    /**
+     * Scope for outstanding payments (belum_bayar, menunggu_verifikasi, terlambat)
+     */
+    public function scopeOutstanding($query)
+    {
+        return $query->whereIn('status', ['belum_bayar', 'menunggu_verifikasi', 'terlambat']);
+    }
+
+    /**
+     * Scope for unpaid payments
+     */
+    public function scopeUnpaid($query)
+    {
+        return $query->where('status', 'belum_bayar');
+    }
 }

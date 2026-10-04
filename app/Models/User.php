@@ -154,6 +154,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Get collection of accessible branches.
+     *
+     * @return Collection<int, Branch>
+     */
+    public function accessibleBranches(): Collection
+    {
+        if ($this->isOwner()) {
+            return Branch::query()
+                ->where('tenant_id', $this->tenant_id)
+                ->orderBy('name')
+                ->get();
+        }
+
+        if ($this->isAdmin()) {
+            return $this->branches()
+                ->where('branches.tenant_id', $this->tenant_id)
+                ->orderBy('branches.name')
+                ->get();
+        }
+
+        return collect();
+    }
+
+    /**
      * Check if tutor is assigned to teach a class.
      */
     public function canTeachClass(Classes|string $class): bool

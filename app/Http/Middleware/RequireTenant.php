@@ -25,6 +25,10 @@ class RequireTenant
             abort(Response::HTTP_FORBIDDEN, 'User is not assigned to a tenant.');
         }
 
+        if ($user->status !== 'active') {
+            abort(Response::HTTP_FORBIDDEN, 'User account is inactive.');
+        }
+
         $tenant = $user->tenant;
 
         if (! $tenant || $tenant->status !== 'active') {

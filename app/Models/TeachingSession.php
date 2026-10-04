@@ -60,6 +60,11 @@ class TeachingSession extends Model
         return $this->belongsTo(Classes::class, 'class_id');
     }
 
+    public function classModel(): BelongsTo
+    {
+        return $this->belongsTo(Classes::class, 'class_id');
+    }
+
     public function scheduledTutor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'scheduled_tutor_id');

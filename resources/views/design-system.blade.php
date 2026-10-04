@@ -20,8 +20,11 @@
       x-data="{ mobileSidebarOpen: false }">
 
     @php
-        $activeSection = $activeSection ?? request()->query('page', request()->query('tab', 'button'));
-        if (!in_array($activeSection, ['color', 'typography', 'text-field', 'button', 'navigation', 'chart-card', 'other'])) {
+        $activeSection = $activeSection ?? request()->query('page', request()->query('tab', request()->query('section', 'button')));
+        if ($activeSection === 'chart-card') {
+            $activeSection = 'card-chart';
+        }
+        if (!in_array($activeSection, ['color', 'typography', 'text-field', 'button', 'navigation', 'card-chart', 'other'])) {
             $activeSection = 'button';
         }
     @endphp
@@ -851,6 +854,369 @@
                                 </div>
                             </div>
                         @endforeach
+                    </div>
+                </div>
+
+            </div>
+            @endif
+
+
+            <!-- ========================================================================= -->
+            <!-- 6. CARD & CHART COMPONENT SHOWCASE (Figma Reference Image 2)              -->
+            <!-- ========================================================================= -->
+            <!-- ========================================================================= -->
+            <!-- 6. CARD & CHART COMPONENT SHOWCASE (Figma Reference Image 2)              -->
+            <!-- ========================================================================= -->
+            @if ($activeSection === 'card-chart')
+            <div class="space-y-12 animate-fadeIn">
+                <!-- Clean Solid Terracotta Hero Banner -->
+                <div class="bg-terracotta-500 rounded-2xl p-8 sm:p-10 text-white relative overflow-hidden shadow-md">
+                    <div class="relative z-10 max-w-2xl space-y-3">
+                        <span class="inline-block bg-white/20 backdrop-blur-xs text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/25 uppercase tracking-wider">
+                            Component
+                        </span>
+                        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">Card & Chart</h1>
+                        <p class="text-terracotta-100 text-sm sm:text-base leading-relaxed">
+                            Guidelines to delve into the Badge to learn how to utilize the component the best.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 1. CHART SECTION -->
+                <div class="space-y-4">
+                    <h2 class="text-sm font-bold tracking-wider text-gray-900 uppercase">Chart</h2>
+
+                    <div class="space-y-6">
+                        <!-- Top Row: Academic Overview & Payment Overview (Distribution) -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="lg:col-span-2">
+                                <x-cressco.chart-project-overview
+                                    title="Academic Overview"
+                                    subtitle="Track class completions and active tutoring across branches"
+                                />
+                            </div>
+                            <div>
+                                <x-cressco.chart-task-distribution
+                                    title="Payment Overview"
+                                    subtitle="Monitor payment status and transactions"
+                                    centerLabel="TOTAL PAYMENTS"
+                                    :total="200"
+                                    unit="Payments"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Bottom Row: Session Overview Stacked Bar Chart -->
+                        <div>
+                            <x-cressco.chart-task-overview
+                                title="Session Overview"
+                                subtitle="Track teaching sessions and monitor activity over time."
+                                unit="Sessions"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. CARD PROJECT, SESSION SCHEDULE & FOLDER -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Card Project -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Card Project</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <x-cressco.project-card
+                                title="Active Classes"
+                                value="48"
+                                trend="+25%"
+                                subtitle="10 new classes this week"
+                            />
+                            <x-cressco.project-card
+                                title="Active Tutors"
+                                value="46"
+                                trend="-12%"
+                                trendType="negative"
+                                subtitle="Across 8 branches"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Session Schedule (Replacing subscription Upgrade Plan with tutoring schedule) -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Session Schedule</h3>
+                        <x-cressco.schedule-card
+                            title="Fisika Dasar - UTBK"
+                            color="terracotta"
+                            description="Prime Academy Malang • Ruang 204 • Dr. Hendra"
+                            time="03:30 PM - 05:30 PM"
+                        />
+                    </div>
+
+                    <!-- Folder -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Folder</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <x-cressco.folder-card title="Modul & Silabus" filesCount="254 files" size="456 MB" />
+                            <x-cressco.folder-card title="Bank Soal Tryout" filesCount="128 files" size="1.2 GB" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. REMINDER, TASK & BUBBLE CHAT -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Reminder -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Reminder</h3>
+                        <x-cressco.reminder-card
+                            title="Evaluasi Tryout SNBT Kelas 12"
+                            time="08.00 AM - 10.30 AM"
+                        />
+                    </div>
+
+                    <!-- Task -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Task</h3>
+                        <x-cressco.task-card
+                            title="Review Modul UTBK - Matematika IPA"
+                            description="Review kelengkapan kunci jawaban dan pembahasan soal TPS SNBT."
+                            priority="High Priority"
+                            dueDate="2 days left"
+                            :commentsCount="8"
+                            :attachmentsCount="4"
+                        />
+                    </div>
+
+                    <!-- Bubble Chat -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Bubble Chat</h3>
+                        <div class="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs space-y-4">
+                            <x-cressco.chat-bubble sender="Dr. Hendra Saputra (Tutor Fisika)" time="04:30 PM">
+                                Halo Admin! Modul pembahasan Tryout Fisika untuk kelas 12 Cabang Malang sudah saya upload ke sistem ya. ✌️
+                            </x-cressco.chat-bubble>
+                            <x-cressco.chat-bubble sender="Sara Lance (Admin Cabang)" time="04:32 PM" :isSender="true">
+                                Terima kasih banyak Dok! Sudah kami verifikasi dan siap didistribusikan ke siswa.
+                            </x-cressco.chat-bubble>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. CALENDAR, DATE, MESSAGE, DOCUMENT & FILES -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Calendar & Date -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Calender & Date</h3>
+                        <x-cressco.calendar />
+                        <div class="pt-2">
+                            <x-cressco.date-strip />
+                        </div>
+                    </div>
+
+                    <!-- Message -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Message</h3>
+                        <div class="space-y-3">
+                            <x-cressco.message-item
+                                sender="Dr. Hendra Saputra"
+                                message="Confirmed attendance for tomorrow's intensive session."
+                                time="10 mins ago"
+                                :unreadCount="2"
+                            />
+                            <x-cressco.message-item
+                                sender="Rina Wijaya (Cabang Semarang)"
+                                message="Laporan absensi dan jadwal kelas baru sudah sinkron."
+                                time="11:20 AM"
+                                :unreadCount="1"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Document -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Document</h3>
+                        <div class="space-y-3">
+                            <x-cressco.document-card title="Silabus_Fisika_Intensif_SNBT.pdf" size="1.8 MB" type="PDF" />
+                            <x-cressco.document-card title="Laporan_Akademik_Cabang_Bandung.xlsx" size="2.4 MB" type="Document" />
+                        </div>
+                    </div>
+
+                    <!-- Files -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Files</h3>
+                        <div class="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs">
+                            <div class="grid grid-cols-4 gap-2.5">
+                                <x-cressco.file-item ext="pdf" />
+                                <x-cressco.file-item ext="fig" />
+                                <x-cressco.file-item ext="png" />
+                                <x-cressco.file-item ext="doc" />
+                                <x-cressco.file-item ext="zip" />
+                                <x-cressco.file-item ext="xls" />
+                                <x-cressco.file-item ext="jpg" />
+                                <x-cressco.file-item ext="txt" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            @endif
+
+
+            <!-- ========================================================================= -->
+            <!-- 7. OTHER COMPONENT SHOWCASE (Figma Reference Image 1)                     -->
+            <!-- ========================================================================= -->
+            @if ($activeSection === 'other')
+            <div class="space-y-12 animate-fadeIn" x-data="{ openDemoModal: false }">
+                <!-- Clean Solid Terracotta Hero Banner -->
+                <div class="bg-terracotta-500 rounded-2xl p-8 sm:p-10 text-white relative overflow-hidden shadow-md">
+                    <div class="relative z-10 max-w-2xl space-y-3">
+                        <span class="inline-block bg-white/20 backdrop-blur-xs text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/25 uppercase tracking-wider">
+                            Component
+                        </span>
+                        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">Other</h1>
+                        <p class="text-terracotta-100 text-sm sm:text-base leading-relaxed">
+                            Guidelines to delve into the Badge to learn how to utilize the component the best.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 1. TABLE & BULK ACTION BAR -->
+                <div class="space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h2 class="text-sm font-bold tracking-wider text-gray-900 uppercase">Table & Bulk Action</h2>
+                        <x-cressco.bulk-action-bar :count="1" />
+                    </div>
+                    <x-cressco.table />
+                </div>
+
+                <!-- 2. TAGS, ALERT, MODAL & PROFILE -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Tags -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Tags</h3>
+                        <div class="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs flex flex-wrap gap-2">
+                            <x-cressco.badge variant="terracotta" dot>Terracotta</x-cressco.badge>
+                            <x-cressco.badge variant="success" dot>Success</x-cressco.badge>
+                            <x-cressco.badge variant="warning" dot>Warning</x-cressco.badge>
+                            <x-cressco.badge variant="info" dot>Info</x-cressco.badge>
+                            <x-cressco.badge variant="error" dot>Error</x-cressco.badge>
+                            <x-cressco.badge variant="purple" dot>Purple</x-cressco.badge>
+                            <x-cressco.badge variant="gray">Neutral</x-cressco.badge>
+                        </div>
+                    </div>
+
+                    <!-- Alert -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Alert</h3>
+                        <div class="space-y-3">
+                            <x-cressco.alert type="success" title="Success Alert">
+                                Transaction processed successfully. All records updated.
+                            </x-cressco.alert>
+                            <x-cressco.alert type="error" title="Error Alert">
+                                Failed to connect to server. Please try again.
+                            </x-cressco.alert>
+                        </div>
+                    </div>
+
+                    <!-- Modal & Profile -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Modal & Profile</h3>
+                        <div class="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold text-gray-700">Interactive Modal:</span>
+                                <button type="button" @click="openDemoModal = true" class="px-3 py-1.5 rounded-lg bg-terracotta-500 hover:bg-terracotta-600 text-white text-xs font-bold shadow-xs transition">
+                                    Open Demo Modal
+                                </button>
+                            </div>
+                            <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+                                <span class="text-xs font-semibold text-gray-700">Avatar Stack:</span>
+                                <x-cressco.avatar-group />
+                            </div>
+                        </div>
+
+                        <!-- Live Modal Instance -->
+                        <div x-show="openDemoModal" style="display: none;">
+                            <x-cressco.modal
+                                name="demo-modal"
+                                :show="true"
+                                title="Delete Task"
+                                description="Are you sure you want to delete this task? This action cannot be undone and will remove it permanently."
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. DATES AGENDA -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Dates Agenda</h3>
+                    <x-cressco.dates-agenda />
+                </div>
+
+                <!-- 4. NOTIFICATION -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Notification</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <x-cressco.notification-item
+                            title="Jane Cooper"
+                            action="requested access to Meta Pixel on iOS project."
+                            time="10 mins ago"
+                            :unread="true"
+                        />
+                        <x-cressco.notification-item
+                            title="Alex Morgan"
+                            action="assigned you a new task in Cressco Dashboard."
+                            time="25 mins ago"
+                            :unread="false"
+                            snippet="Review student attendance and grade submissions for Class 10-A."
+                        />
+                        <x-cressco.notification-item
+                            title="Robert Fox"
+                            action="requested permission for branch timetable updates."
+                            time="1 hour ago"
+                            :isActionable="true"
+                        />
+                        <x-cressco.notification-item
+                            title="Emily Watson"
+                            action="completed course assessment upload for Grade 12."
+                            time="2 hours ago"
+                            :isActionable="true"
+                        />
+                    </div>
+                </div>
+
+                <!-- 5. TIMELINE PROJECT & SCHEDULE CATEGORIES -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Timeline Project -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Timeline Project / Task</h3>
+                        <div class="space-y-3">
+                            <x-cressco.timeline-item priority="High Priority" priorityVariant="error" title="Cressco Dashboard MVP" date="October 12, 2026" />
+                            <x-cressco.timeline-item priority="Medium Priority" priorityVariant="warning" title="Student Attendance Mobile App" date="October 18, 2026" />
+                            <x-cressco.timeline-item priority="Low Priority" priorityVariant="info" title="Parent Portal Notification Gateway" date="October 25, 2026" />
+                        </div>
+                    </div>
+
+                    <!-- Schedule Categories -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Schedule Categories</h3>
+                        <div class="space-y-3">
+                            <x-cressco.schedule-card title="UI Module" color="blue" description="Discussion on responsive layout & mobile navigation structure." time="07:00 PM - 09:00 PM" />
+                            <x-cressco.schedule-card title="Backend API Architecture" color="purple" description="Reviewing multi-tenant database foreign keys and policy checks." time="09:00 PM - 10:30 PM" />
+                            <x-cressco.schedule-card title="Deployment Pipeline" color="emerald" description="Configuring automated CI test runner and container builds." time="11:00 PM - 12:00 AM" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. LOGO & BRAND ASSETS -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Logo / Brand Assets</h3>
+                    <div class="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs">
+                        <x-cressco.brand-logos />
+                    </div>
+                </div>
+
+                <!-- 7. INTEGRATION / CONNECTOR VISUAL -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold tracking-wider text-gray-900 uppercase">Integration / Connector Visual</h3>
+                    <div class="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-xs">
+                        <x-cressco.integration-hub />
                     </div>
                 </div>
 
