@@ -409,4 +409,86 @@ class ActualTeachingAndTutorReplacementTest extends TestCase
             $this->ownerA
         );
     }
+
+    public function test_tutor_can_report_absence_on_upcoming_scheduled_session(): void
+    {
+        $this->actingAs($this->tutorA);
+
+        $response = $this->post(route('tutor.sessions.report-absence', $this->sessionMath), [
+            'reason' => 'Sakit demam tinggi',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->sessionMath->refresh();
+        $this->assertNull($this->sessionMath->actual_tutor_id);
+        $this->assertEquals($this->tutorA->id, $this->sessionMath->scheduled_tutor_id);
+        $this->assertStringContainsString('[TUTOR BERHALANGAN]', $this->sessionMath->notes);
+        $this->assertStringContainsString('Sakit demam tinggi', $this->sessionMath->notes);
+    }
+
+    public function test_tutor_cannot_report_absence_on_unassigned_session(): void
+    {
+        // Tutor B is not assigned to sessionMath (Tutor A is scheduled)
+        $this->actingAs($this->tutorB);
+
+        $response = $this->post(route('tutor.sessions.report-absence', $this->sessionMath), [
+            'reason' => 'Unauthorized absence report',
+        ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_sessions_needing_attention_are_visible_on_admin_dashboard(): void
+    {
+        // Tutor reports absence
+        $this->sessionMath->update([
+            'actual_tutor_id' => null,
+            'notes' => '[TUTOR BERHALANGAN] Tutor Arya: Sakit demam',
+            'session_date' => Carbon::now()->addDays(2)->toDateString(),
+        ]);
+
+        $this->actingAs($this->adminMalang);
+
+        $response = $this->get(route('admin.dashboard'));
+        $response->assertOk();
+        $response->assertSee('Sesi Membutuhkan Perhatian');
+        $response->assertSee('Tutor Berhalangan');
+        $response->assertSee($this->classMath->name);
+    }
+
+    public function test_admin_can_view_teaching_sessions_tab_and_details_on_class_detail(): void
+    {
+        $this->actingAs($this->adminMalang);
+
+        $response = $this->get(route('admin.classes.show', $this->classMath));
+        $response->assertOk();
+        $response->assertSee('Sesi Mengajar');
+        $response->assertSee($this->sessionMath->scheduledTutor->name);
+    }
+
+    public function test_replacing_tutor_preserves_class_primary_tutor_and_updates_actual_tutor_for_honor(): void
+    {
+        $this->actingAs($this->adminMalang);
+
+        // Class and schedule primary tutor is tutorA
+        $this->assertEquals($this->tutorA->id, $this->classMath->tutorAssignments()->where('is_primary', true)->first()?->tutor_id ?? $this->tutorA->id);
+
+        // Admin replaces tutor on session
+        $this->post(route('admin.attendances.sessions.replace-tutor', $this->sessionMath), [
+            'replacement_tutor_id' => $this->tutorB->id,
+            'reason' => 'Tutor Arya berhalangan, digantikan oleh Tutor Bima',
+        ])->assertRedirect();
+
+        $this->sessionMath->refresh();
+        $this->assertEquals($this->tutorA->id, $this->sessionMath->scheduled_tutor_id);
+        $this->assertEquals($this->tutorB->id, $this->sessionMath->actual_tutor_id);
+
+        // Class assignments remain unchanged
+        $this->assertDatabaseHas('tutor_assignments', [
+            'class_id' => $this->classMath->id,
+            'tutor_id' => $this->tutorA->id,
+        ]);
+    }
 }

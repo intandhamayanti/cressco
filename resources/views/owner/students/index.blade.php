@@ -59,6 +59,16 @@
             </div>
 
             <div class="flex items-center gap-3">
+                <x-cressco.button
+                    as="a"
+                    :href="route('owner.imports.create', 'students')"
+                    variant="outline"
+                    size="md"
+                    leadingIcon="upload"
+                >
+                    Import Siswa
+                </x-cressco.button>
+
                 <x-cressco.button variant="primary" size="md" leadingIcon="plus" @click="openCreate()">
                     Daftarkan Siswa Baru
                 </x-cressco.button>

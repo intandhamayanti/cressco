@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\TeachingSession;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ReplaceTutorRequest extends FormRequest
 {
@@ -37,8 +38,17 @@ class ReplaceTutorRequest extends FormRequest
      */
     public function rules(): array
     {
+        $tenantId = $this->user()?->tenant_id;
+
         return [
-            'replacement_tutor_id' => ['required', 'uuid', 'exists:users,id'],
+            'replacement_tutor_id' => [
+                'required',
+                'uuid',
+                Rule::exists('users', 'id')->where(function ($query) use ($tenantId) {
+                    $query->where('tenant_id', $tenantId)
+                        ->where('status', 'active');
+                }),
+            ],
             'reason' => ['required', 'string', 'max:1000'],
         ];
     }

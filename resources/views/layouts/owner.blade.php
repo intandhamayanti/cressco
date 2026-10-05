@@ -74,7 +74,7 @@
                         <div class="mt-1 ml-5 pl-3 border-l-2 border-gray-200 space-y-1" x-show="akademikOpen" x-transition>
                             <x-cressco.nav-item label="Siswa" :href="route('owner.students.index')" :isNested="true" :active="request()->routeIs('owner.students*')" />
                             <x-cressco.nav-item label="Kelas & Jadwal" :href="route('owner.classes.index')" :isNested="true" :active="request()->routeIs('owner.classes*')" />
-                            <x-cressco.nav-item label="Absensi" :href="route('owner.classes.index')" :isNested="true" :active="false" />
+                            <x-cressco.nav-item label="Absensi" :href="route('owner.attendances.index')" :isNested="true" :active="request()->routeIs('owner.attendances*')" />
                         </div>
                     </div>
 
@@ -155,30 +155,30 @@
             <div class="p-3 border-t border-gray-100 bg-white shrink-0">
                 <div class="bg-gray-50/90 border border-gray-200/80 rounded-2xl p-3.5 space-y-3 shadow-2xs">
                     <div>
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between gap-2">
                             <h4 class="text-xs font-bold text-gray-900 leading-snug">Masa Aktif Paket</h4>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">14 Hari Lagi</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100/80 text-amber-900 border border-amber-200/80 shrink-0">14 Hari Lagi</span>
                         </div>
-                        <p class="text-[11px] text-gray-500 leading-tight mt-1">
-                            Langganan <strong class="text-gray-800">Paket Pro</strong> berakhir pada <strong class="text-gray-800">18 Okt 2026</strong>. Perpanjang sekarang agar operasional bimbel tetap lancar.
+                        <p class="text-[11px] text-gray-500 mt-1">
+                            Langganan <strong class="text-gray-900 font-semibold">Paket Pro</strong> aktif hingga <strong class="text-gray-900 font-semibold">18 Okt 2026</strong>.
                         </p>
                     </div>
 
-                    <!-- Multi-bar Rainbow / Gradient Progress Meter (Remaining Period Visual) -->
-                    <div class="flex items-center gap-1">
-                        <span class="h-4 w-1.5 rounded-full bg-[#D946EF]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#C026D3]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#E11D48]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#F43F5E]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#FB923C]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#F97316]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#FBBF24]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
+                    <!-- Cressco Terracotta Fading Pill-Segmented Progress Bar -->
+                    @php
+                        $fadingTerracottaPills = [
+                            1 => 'bg-terracotta-600',
+                            2 => 'bg-terracotta-500',
+                            3 => 'bg-terracotta-400',
+                            4 => 'bg-terracotta-300',
+                            5 => 'bg-terracotta-200',
+                            6 => 'bg-terracotta-100',
+                        ];
+                    @endphp
+                    <div class="flex items-center gap-1.5 py-0.5">
+                        @for ($i = 1; $i <= 12; $i++)
+                            <div class="w-2 h-4.5 rounded-full transition-colors duration-200 {{ $i <= 6 ? ($fadingTerracottaPills[$i] ?? 'bg-terracotta-500') : 'bg-gray-100' }}"></div>
+                        @endfor
                     </div>
 
                     <!-- Dark Renewal Button -->
@@ -256,7 +256,7 @@
                         <div class="mt-1 ml-5 pl-3 border-l-2 border-gray-200 space-y-1" x-show="akademikOpen" x-transition>
                             <x-cressco.nav-item label="Siswa" :href="route('owner.students.index')" :isNested="true" :active="request()->routeIs('owner.students*')" />
                             <x-cressco.nav-item label="Kelas & Jadwal" :href="route('owner.classes.index')" :isNested="true" :active="request()->routeIs('owner.classes*')" />
-                            <x-cressco.nav-item label="Absensi" :href="route('owner.classes.index')" :isNested="true" :active="false" />
+                            <x-cressco.nav-item label="Absensi" :href="route('owner.attendances.index')" :isNested="true" :active="request()->routeIs('owner.attendances*')" />
                         </div>
                     </div>
 
@@ -326,30 +326,20 @@
             <div class="p-3 border-t border-gray-100 bg-white shrink-0">
                 <div class="bg-gray-50/90 border border-gray-200/80 rounded-2xl p-3.5 space-y-3 shadow-2xs">
                     <div>
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between gap-2">
                             <h4 class="text-xs font-bold text-gray-900 leading-snug">Masa Aktif Paket</h4>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">14 Hari Lagi</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100/80 text-amber-900 border border-amber-200/80 shrink-0">14 Hari Lagi</span>
                         </div>
-                        <p class="text-[11px] text-gray-500 leading-tight mt-1">
-                            Langganan <strong class="text-gray-800">Paket Pro</strong> berakhir pada <strong class="text-gray-800">18 Okt 2026</strong>.
+                        <p class="text-[11px] text-gray-500 mt-1">
+                            Langganan <strong class="text-gray-900 font-semibold">Paket Pro</strong> aktif hingga <strong class="text-gray-900 font-semibold">18 Okt 2026</strong>.
                         </p>
                     </div>
 
-                    <!-- Multi-bar Rainbow Progress Meter -->
-                    <div class="flex items-center gap-1">
-                        <span class="h-4 w-1.5 rounded-full bg-[#D946EF]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#C026D3]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#E11D48]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#F43F5E]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#FB923C]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#F97316]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-[#FBBF24]"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
-                        <span class="h-4 w-1.5 rounded-full bg-gray-200"></span>
+                    <!-- Cressco Terracotta Fading Pill-Segmented Progress Bar -->
+                    <div class="flex items-center gap-1.5 py-0.5">
+                        @for ($i = 1; $i <= 12; $i++)
+                            <div class="w-2 h-4.5 rounded-full transition-colors duration-200 {{ $i <= 6 ? ($fadingTerracottaPills[$i] ?? 'bg-terracotta-500') : 'bg-gray-100' }}"></div>
+                        @endfor
                     </div>
 
                     <!-- Dark Renewal Button -->
@@ -383,12 +373,76 @@
                     </div>
                 </div>
 
-                <!-- Right Action / User Profile -->
-                <div class="flex items-center gap-2 sm:gap-3 shrink-0" x-data="{ userMenuOpen: false }">
+                <!-- Right Action / Notifications & User Profile -->
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0" x-data="{ userMenuOpen: false, notifOpen: false }">
+                    
+                    @php
+                        $ownerTenant = $tenant ?? (auth()->check() ? auth()->user()->tenant : null);
+                        $ownerNotifs = $ownerTenant ? app(\App\Services\OwnerNotificationService::class)->getNotifications($ownerTenant) : collect();
+                        $unreadCount = $ownerNotifs->where('is_urgent', true)->count();
+                    @endphp
+
+                    <!-- Notification Bell Dropdown -->
                     <div class="relative">
                         <button type="button"
-                                @click="userMenuOpen = !userMenuOpen"
-                                class="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-gray-50 transition border border-transparent hover:border-gray-200 focus:outline-hidden text-left">
+                                @click="notifOpen = !notifOpen; userMenuOpen = false"
+                                class="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition relative focus:outline-hidden cursor-pointer"
+                                title="Notifikasi Eksekutif">
+                            <x-cressco.icon-helper name="notification" class="w-5 h-5" />
+                            @if($unreadCount > 0)
+                                <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-terracotta-500 ring-2 ring-white animate-pulse"></span>
+                            @endif
+                        </button>
+
+                        <!-- Notification Dropdown Panel -->
+                        <div x-show="notifOpen"
+                             x-cloak
+                             @click.outside="notifOpen = false"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white shadow-2xl border border-gray-100 py-2 z-50 text-xs">
+                            
+                            <div class="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                                <div class="font-bold text-gray-900">Notifikasi Eksekutif</div>
+                                <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Oversight</span>
+                            </div>
+
+                            <div class="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                                @forelse($ownerNotifs as $notif)
+                                    <a href="{{ $notif['url'] }}"
+                                       @click="notifOpen = false"
+                                       class="block p-3.5 hover:bg-gray-50 transition group">
+                                        <div class="flex items-start gap-3">
+                                            <div class="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center {{ $notif['color'] === 'amber' ? 'bg-amber-50 text-amber-600' : ($notif['color'] === 'rose' ? 'bg-rose-50 text-rose-600' : ($notif['color'] === 'blue' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600')) }}">
+                                                <x-cressco.icon-helper :name="$notif['icon']" class="w-4 h-4" />
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center justify-between gap-1">
+                                                    <span class="font-bold text-gray-900 group-hover:text-terracotta-600 transition truncate">{{ $notif['title'] }}</span>
+                                                    <span class="text-[10px] text-gray-400 shrink-0">{{ $notif['time'] }}</span>
+                                                </div>
+                                                <p class="text-gray-500 text-[11px] leading-snug mt-0.5">{{ $notif['message'] }}</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                @empty
+                                    <div class="p-6 text-center text-gray-400 text-xs">
+                                        Tidak ada notifikasi penting saat ini. Seluruh operasional bimbel berjalan normal.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Profile Dropdown Button -->
+                    <div class="relative">
+                        <button type="button"
+                                @click="userMenuOpen = !userMenuOpen; notifOpen = false"
+                                class="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-gray-50 transition border border-transparent hover:border-gray-200 focus:outline-hidden text-left cursor-pointer">
                             <div class="w-8 h-8 rounded-full bg-terracotta-100 text-terracotta-800 flex items-center justify-center font-bold text-xs shrink-0 border border-terracotta-200">
                                 {{ strtoupper(substr(auth()->user()->name ?? 'O', 0, 2)) }}
                             </div>
@@ -409,22 +463,29 @@
                              x-transition:leave="transition ease-in duration-75"
                              x-transition:leave-start="transform opacity-100 scale-100"
                              x-transition:leave-end="transform opacity-0 scale-95"
-                             class="absolute right-0 mt-2 w-48 rounded-2xl bg-white shadow-xl border border-gray-100 py-1.5 z-50 text-xs font-medium text-gray-700">
+                             class="absolute right-0 mt-2 w-52 rounded-2xl bg-white shadow-xl border border-gray-100 py-1.5 z-50 text-xs font-medium text-gray-700">
                             
                             <div class="px-4 py-2 border-b border-gray-100">
                                 <p class="font-bold text-gray-900 truncate">{{ auth()->user()->name ?? 'Owner' }}</p>
                                 <p class="text-[11px] text-gray-500 truncate">{{ auth()->user()->email ?? '' }}</p>
                             </div>
 
+                            <a href="{{ route('owner.profile') }}" class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 transition">
+                                <x-cressco.icon-helper name="user" class="w-4 h-4 text-gray-400" />
+                                <span>Profil Saya</span>
+                            </a>
+
                             <a href="{{ route('owner.settings') }}" class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 transition">
                                 <x-cressco.icon-helper name="settings" class="w-4 h-4 text-gray-400" />
-                                <span>Pengaturan Akun</span>
+                                <span>Pengaturan Bimbel</span>
                             </a>
+
+                            <div class="border-t border-gray-100 my-1"></div>
 
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
-                                <button type="submit" class="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-600 transition text-left">
-                                    <x-cressco.icon-helper name="arrow-right" class="w-4 h-4 text-red-500" />
+                                <button type="submit" class="w-full flex items-center gap-2 px-4 py-2 hover:bg-rose-50 text-rose-600 transition text-left cursor-pointer">
+                                    <x-cressco.icon-helper name="log-out" class="w-4 h-4 text-rose-500" />
                                     <span>Keluar (Logout)</span>
                                 </button>
                             </form>

@@ -2,12 +2,19 @@
     <x-slot:breadcrumbSub>Detail Sesi</x-slot:breadcrumbSub>
 
     <div class="space-y-6 max-w-7xl mx-auto" x-data="{
+        absenceModalOpen: false,
         markAll(status) {
             document.querySelectorAll('input[type=radio][value=' + status + ']').forEach(el => {
                 el.checked = true;
             });
         }
     }">
+        @php
+            $isScheduledTutor = $session->scheduled_tutor_id === auth()->id();
+            $isActualTutor = $session->actual_tutor_id === auth()->id();
+            $isReplaced = $session->actual_tutor_id && $session->scheduled_tutor_id && $session->actual_tutor_id !== $session->scheduled_tutor_id;
+            $hasAbsenceReport = $session->notes && str_contains($session->notes, '[TUTOR BERHALANGAN]');
+        @endphp
         
         <!-- Header & Breadcrumb / Navigation -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -16,9 +23,18 @@
                     <x-cressco.icon-helper name="chevron-left" class="w-4 h-4" />
                 </a>
                 <div>
-                    <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
-                        {{ $session->classModel?->name ?? 'Sesi Mengajar' }}
-                    </h1>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
+                            {{ $session->classModel?->name ?? 'Sesi Mengajar' }}
+                        </h1>
+                        @if($isReplaced && $isActualTutor)
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Tutor Pengganti</span>
+                        @elseif($isReplaced && $isScheduledTutor)
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">Digantikan</span>
+                        @elseif($hasAbsenceReport && is_null($session->actual_tutor_id))
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800">Lapor Berhalangan</span>
+                        @endif
+                    </div>
                     <p class="text-xs text-gray-500 mt-0.5">
                         {{ $session->session_date ? \Carbon\Carbon::parse($session->session_date)->translatedFormat('l, d F Y') : '-' }} • {{ substr($session->start_time, 0, 5) }} - {{ substr($session->end_time, 0, 5) }} WIB
                     </p>
@@ -26,6 +42,15 @@
             </div>
 
             <div class="flex items-center gap-2 self-start sm:self-center">
+                @if ($session->status === 'scheduled' && ($isScheduledTutor || $isActualTutor) && !$hasAbsenceReport)
+                    <button type="button"
+                            @click="absenceModalOpen = true"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-xs font-bold text-red-700 transition shadow-2xs">
+                        <x-cressco.icon-helper name="alert-circle" class="w-3.5 h-3.5" />
+                        <span>Tidak Bisa Hadir</span>
+                    </button>
+                @endif
+
                 @if ($session->class_id)
                     <a href="{{ route('tutor.classes.show', $session->class_id) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700 transition shadow-2xs">
                         <x-cressco.icon-helper name="academic" class="w-3.5 h-3.5 text-gray-500" />
@@ -34,6 +59,23 @@
                 @endif
             </div>
         </div>
+
+        @if ($hasAbsenceReport)
+            <div class="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-start gap-3 shadow-xs">
+                <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold">
+                    <x-cressco.icon-helper name="alert-circle" class="w-4 h-4" />
+                </div>
+                <div class="space-y-0.5 text-xs text-amber-900">
+                    <h3 class="font-bold text-amber-950">Laporan Ketidakhadiran Tutor</h3>
+                    <p>{{ $session->notes }}</p>
+                    @if(is_null($session->actual_tutor_id))
+                        <p class="font-semibold text-amber-800 pt-1">Status: Menunggu Admin menugaskan Tutor Pengganti.</p>
+                    @else
+                        <p class="font-semibold text-emerald-800 pt-1">Tutor Pengganti: {{ $session->actualTutor?->name }}</p>
+                    @endif
+                </div>
+            </div>
+        @endif
 
         <!-- Session Overview Cards Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -286,10 +328,67 @@
                         </div>
                     @endif
 
+        <!-- MODAL LAPOR TIDAK BISA HADIR -->
+        <div x-show="absenceModalOpen"
+             class="fixed inset-0 z-50 overflow-y-auto"
+             style="display: none;"
+             x-cloak>
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity" @click="absenceModalOpen = false"></div>
+
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-gray-100" @click.stop>
+                    <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center font-bold">
+                                <x-cressco.icon-helper name="alert-circle" class="w-4 h-4" />
+                            </div>
+                            <h3 class="text-base font-bold text-gray-900">Lapor Tidak Bisa Hadir</h3>
+                        </div>
+                        <button type="button" @click="absenceModalOpen = false" class="text-gray-400 hover:text-gray-600">
+                            <x-cressco.icon-helper name="x" class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <form action="{{ route('tutor.sessions.report-absence', $session) }}" method="POST" class="mt-4 space-y-4">
+                        @csrf
+
+                        <div class="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs space-y-1.5">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Kelas:</span>
+                                <span class="font-bold text-gray-900">{{ $session->classModel?->name ?? 'Kelas' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Jadwal:</span>
+                                <span class="font-semibold text-gray-900">{{ \Carbon\Carbon::parse($session->session_date)->translatedFormat('l, d M Y') }} ({{ substr($session->start_time, 0, 5) }} - {{ substr($session->end_time, 0, 5) }} WIB)</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
+                                Alasan Berhalangan (Opsional)
+                            </label>
+                            <textarea name="reason" rows="3" placeholder="Contoh: Sedang sakit demam, ada urusan darurat, dll..."
+                                      class="w-full text-xs rounded-xl border-gray-300 focus:border-terracotta-500 focus:ring-terracotta-500"></textarea>
+                        </div>
+
+                        <div class="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+                            <x-cressco.icon-helper name="info" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <span>
+                                Setelah dilaporkan, Admin akan mendapatkan notifikasi pada dashboard untuk menugaskan tutor pengganti pada sesi ini.
+                            </span>
+                        </div>
+
+                        <div class="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                            <x-cressco.button variant="outline" size="md" type="button" @click="absenceModalOpen = false">
+                                Batal
+                            </x-cressco.button>
+                            <x-cressco.button variant="danger" size="md" type="submit">
+                                Kirim Laporan
+                            </x-cressco.button>
+                        </div>
+                    </form>
                 </div>
-
             </div>
-
         </div>
 
     </div>

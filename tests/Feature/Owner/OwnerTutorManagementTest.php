@@ -147,7 +147,8 @@ class OwnerTutorManagementTest extends TestCase
         $response->assertOk();
         $response->assertSee('Management Tutor');
         $response->assertSee('Kak Dewi Lestari');
-        $response->assertSee('Skema Reguler Per Sesi');
+        $response->assertSee('Default Bimbel');
+        $response->assertSee('150.000');
     }
 
     public function test_owner_cannot_see_other_tenant_tutors(): void
@@ -183,6 +184,38 @@ class OwnerTutorManagementTest extends TestCase
             'tenant_id' => $this->tenantA->id,
             'tutor_id' => $tutor->id,
             'honor_scheme_id' => $this->schemeSenior->id,
+            'assignment_type' => 'tutor_override',
+        ]);
+    }
+
+    public function test_owner_can_create_tutor_with_integrated_honor_rate(): void
+    {
+        $payload = [
+            'name' => 'Dr. Rina Novita',
+            'email' => 'tutor.rina@cressco.test',
+            'phone' => '081299887766',
+            'status' => 'active',
+            'honor_mode' => 'other',
+            'method' => 'per_session',
+            'rate' => 85000,
+            'effective_from' => '2026-03-01',
+        ];
+
+        $response = $this->actingAs($this->ownerA)->post('/owner/tutors', $payload);
+
+        $tutor = User::where('email', 'tutor.rina@cressco.test')->first();
+        $this->assertNotNull($tutor);
+        $response->assertRedirect(route('owner.tutors.show', $tutor));
+
+        $this->assertDatabaseHas('honor_schemes', [
+            'tenant_id' => $this->tenantA->id,
+            'method' => 'per_session',
+            'rate' => 85000,
+        ]);
+
+        $this->assertDatabaseHas('honor_assignments', [
+            'tenant_id' => $this->tenantA->id,
+            'tutor_id' => $tutor->id,
             'assignment_type' => 'tutor_override',
         ]);
     }
@@ -326,6 +359,46 @@ class OwnerTutorManagementTest extends TestCase
         ];
 
         $res2 = $this->actingAs($this->ownerA)->post("/owner/tutors/{$this->tutorA1->id}/honor-scheme", $payloadClear);
+        $res2->assertRedirect();
+
+        $this->assertDatabaseMissing('honor_assignments', [
+            'tenant_id' => $this->tenantA->id,
+            'tutor_id' => $this->tutorA1->id,
+            'assignment_type' => 'tutor_override',
+        ]);
+    }
+
+    public function test_owner_can_configure_honor_with_user_centric_mode(): void
+    {
+        // 1. Choose "Pengaturan Lain" with method and rate
+        $payloadOther = [
+            'honor_mode' => 'other',
+            'method' => 'per_student',
+            'rate' => 75000,
+            'effective_from' => '2026-03-01',
+        ];
+
+        $res1 = $this->actingAs($this->ownerA)->post("/owner/tutors/{$this->tutorA1->id}/honor-scheme", $payloadOther);
+        $res1->assertRedirect();
+
+        $this->assertDatabaseHas('honor_schemes', [
+            'tenant_id' => $this->tenantA->id,
+            'method' => 'per_student',
+            'rate' => 75000,
+        ]);
+
+        $this->assertDatabaseHas('honor_assignments', [
+            'tenant_id' => $this->tenantA->id,
+            'tutor_id' => $this->tutorA1->id,
+            'assignment_type' => 'tutor_override',
+        ]);
+
+        // 2. Switch back to "Default Bimbel"
+        $payloadDefault = [
+            'honor_mode' => 'default',
+        ];
+
+        $res2 = $this->actingAs($this->ownerA)->post("/owner/tutors/{$this->tutorA1->id}/honor-scheme", $payloadDefault);
         $res2->assertRedirect();
 
         $this->assertDatabaseMissing('honor_assignments', [

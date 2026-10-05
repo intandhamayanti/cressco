@@ -1,6 +1,6 @@
 @props([
     'title' => 'Performa Keuangan: Revenue vs Expenses',
-    'subtitle' => 'Tren pendapatan, beban honor tutor, dan estimasi laba bulanan',
+    'subtitle' => 'Tren pendapatan, beban honor tutor, dan estimasi laba bulanan tahun ' . now()->year,
     'period' => 'Monthly',
     'data' => null,
     'showToggle' => true,
@@ -26,132 +26,169 @@
 
     $chartData = $data ?? $defaultData;
     $currentMonthIdx = now()->month - 1;
-    $maxVal = $isCurrency ? 50 : 35;
+
+    // Calculate max value dynamically for proportional scaling
+    $peakVal1 = 0;
+    $peakVal2 = 0;
+    foreach ($chartData as $row) {
+        $peakVal1 = max($peakVal1, (float) ($row['val1'] ?? 0));
+        $peakVal2 = max($peakVal2, (float) ($row['val2'] ?? 0));
+    }
+    $maxVal = max($isCurrency ? 50 : 35, $peakVal1 * 1.15);
 @endphp
 
-<div x-data="{ currentPeriod: '{{ $period }}', activeIndex: {{ $currentMonthIdx }}, hoveredIndex: null }"
-     {{ $attributes->merge(['class' => 'bg-white rounded-3xl border border-gray-200/80 p-6 shadow-xs flex flex-col justify-between space-y-6 font-sans select-none']) }}>
+<div x-data="{
+        currentPeriod: '{{ $period }}',
+        hoveredIndex: null,
+        hoveredTopHeight: 0,
+        updateHover(idx, topH) {
+            this.hoveredIndex = idx;
+            this.hoveredTopHeight = topH;
+        }
+     }"
+     {{ $attributes->merge(['class' => 'bg-white rounded-3xl border border-gray-200/80 p-6 sm:p-7 shadow-xs flex flex-col justify-between select-none relative font-sans']) }}>
     
-    <!-- Chart Header: Title/Subtitle (Left) and Legend (Top Right) -->
+    <!-- 1. Header: Title/Subtitle (Left) & Minimal Dot Legend (Right) -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <h3 class="text-base sm:text-lg font-bold text-gray-900">{{ $title }}</h3>
+            <h3 class="text-base sm:text-lg font-bold text-gray-900 tracking-tight">{{ $title }}</h3>
             <p class="text-xs text-gray-500 mt-0.5">{{ $subtitle }}</p>
         </div>
 
         @if ($showLegend)
-            <!-- Legend (Top Right) -->
+            <!-- Clean Dot Legend (Right) matching Figma Reference -->
             <div class="flex items-center gap-4 text-xs font-medium self-start sm:self-center">
                 <div class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-terracotta-500"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-terracotta-500 shadow-2xs"></span>
                     <span class="text-gray-700 font-semibold">{{ $legend1 }}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-slate-800"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-800 shadow-2xs"></span>
                     <span class="text-gray-700 font-semibold">{{ $legend2 }}</span>
                 </div>
             </div>
         @endif
     </div>
 
-    <!-- Chart Main Body with Separated Y-Axis Column and Bars Area -->
-    <div class="flex items-stretch gap-2 pt-2">
+    <!-- 2. Chart Workspace (Y-Axis + Grid Lines + Baseline Locked Columns) -->
+    <div class="flex items-stretch gap-2 pt-4">
         
-        <!-- Y-Axis Column (Fixed on the Left - Never Overlaps Bars!) -->
-        <div class="w-10 sm:w-12 shrink-0 flex flex-col justify-between text-right pr-3 text-[11px] text-gray-400 font-mono select-none h-56 pb-7">
+        <!-- Y-Axis Fixed Left Column -->
+        <div class="w-9 sm:w-11 shrink-0 flex flex-col justify-between text-right pr-2 text-[11px] font-medium text-gray-400 font-mono select-none h-[210px] pb-2">
             @if ($isCurrency)
                 <div>50M</div>
                 <div>35M</div>
                 <div>20M</div>
-                <div class="font-bold text-gray-600">0M</div>
+                <div class="font-bold text-gray-700">0M</div>
                 <div>-10M</div>
             @else
                 <div>30</div>
                 <div>20</div>
                 <div>10</div>
-                <div class="font-bold text-gray-600">00</div>
+                <div class="font-bold text-gray-700">00</div>
                 <div>-10</div>
             @endif
         </div>
 
-        <!-- Right Side: Grid Lines Background + Dynamic Bars -->
+        <!-- Chart Grid & Dynamic Capsule Columns -->
         <div class="relative flex-1">
             
-            <!-- Horizontal Grid Lines -->
-            <div class="absolute inset-x-0 inset-y-0 flex flex-col justify-between pointer-events-none pb-7">
-                <div class="border-b border-gray-100 w-full"></div>
-                <div class="border-b border-gray-100 w-full"></div>
-                <div class="border-b border-gray-100 w-full"></div>
-                <div class="border-b border-gray-200 border-dashed w-full"></div>
-                <div class="border-b border-gray-100 w-full"></div>
+            <!-- Horizontal Grid Lines (Subtle Minimalist Dash with Solid 0-Baseline) -->
+            <div class="absolute inset-x-0 top-0 h-[210px] flex flex-col justify-between pointer-events-none pb-2">
+                <div class="border-b border-gray-100 border-dashed w-full"></div> <!-- 50M -->
+                <div class="border-b border-gray-100 border-dashed w-full"></div> <!-- 35M -->
+                <div class="border-b border-gray-100 border-dashed w-full"></div> <!-- 20M -->
+                <div class="border-b border-gray-200 w-full shadow-2xs"></div> <!-- 0M Baseline -->
+                <div class="border-b border-gray-100 border-dashed w-full"></div> <!-- -10M -->
             </div>
 
-            <!-- Dynamic Bars -->
-            <div class="relative z-10 flex items-center justify-between sm:justify-around gap-1.5 sm:gap-2 h-56 px-2"
+            <!-- Dynamic Laser Apex Guideline on Hover -->
+            <div x-show="hoveredIndex !== null"
+                 x-cloak
+                 class="absolute inset-x-0 border-b border-dashed border-terracotta-400/90 pointer-events-none z-20 transition-all duration-150"
+                 :style="`top: ${155 - hoveredTopHeight}px;`">
+            </div>
+
+            <!-- Columns Layout Container -->
+            <div class="relative z-10 flex items-stretch justify-between sm:justify-around gap-1.5 sm:gap-2.5 h-[245px] px-1"
                  @mouseleave="hoveredIndex = null">
                 @foreach ($chartData as $index => $item)
                     @php
                         $isCurrentMonth = ($index === $currentMonthIdx);
                         $val1 = (float) ($item['val1'] ?? 0);
                         $val2 = (float) ($item['val2'] ?? 0);
-                        // Scale calculations
-                        $topHeight = min(110, max(8, ($val1 / $maxVal) * 105));
-                        $botHeight = min(48, max(6, ($val2 / $maxVal) * 44));
-                    @endphp
-                    <div class="flex-1 max-w-[48px] flex flex-col items-center justify-center h-full group relative cursor-pointer"
-                         @mouseenter="hoveredIndex = {{ $index }}">
+
+                        // Precision scale calculations anchored at baseline (0M at 155px)
+                        $maxUpperPx = 140; // Max height for positive revenue zone
+                        $maxLowerPx = 45;  // Max height for negative expense zone
+
+                        $topHeight = $val1 > 0 ? min($maxUpperPx, max(12, (int) round(($val1 / $maxVal) * $maxUpperPx))) : 3;
+                        $botHeight = $val2 > 0 ? min($maxLowerPx, max(8, (int) round(($val2 / $maxVal) * $maxLowerPx * 1.8))) : 0;
                         
-                        <!-- Floating Tooltip on Hover / Active Month -->
-                        <div x-show="hoveredIndex === {{ $index }} || (hoveredIndex === null && activeIndex === {{ $index }})"
+                        $rawRev = $item['raw_revenue'] ?? ($val1 * 1000000);
+                        $rawExp = $item['raw_expenses'] ?? ($val2 * 1000000);
+                        $rawProf = $item['raw_profit'] ?? max(0, $rawRev - $rawExp);
+                    @endphp
+                    
+                    <!-- Single Column Unit: Locked at 0 Baseline with Upper & Lower Bar -->
+                    <div class="flex-1 max-w-[48px] flex flex-col items-center h-full group relative cursor-pointer"
+                         @mouseenter="updateHover({{ $index }}, {{ $topHeight }})">
+                        
+                        <!-- Floating Glassmorphism HUD Tooltip (Hover Only) -->
+                        <div x-show="hoveredIndex === {{ $index }}"
                              x-cloak
-                             x-transition:enter="transition ease-out duration-150"
-                             x-transition:enter-start="opacity-0 translate-y-1 scale-95"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 translate-y-2 scale-95"
                              x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-                             class="absolute -top-24 z-40 bg-white/95 backdrop-blur-xs border border-gray-200/90 rounded-2xl p-3 shadow-xl whitespace-nowrap text-left text-xs pointer-events-none min-w-[150px]">
-                            <div class="font-bold text-gray-900 border-b border-gray-100 pb-1.5 mb-2 text-xs flex items-center justify-between gap-3">
-                                <span>{{ $item['label'] }} {{ now()->year }}</span>
+                             class="absolute -top-28 z-40 bg-white/95 backdrop-blur-xl border border-gray-200/90 rounded-2xl p-4 shadow-[0_20px_45px_-10px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.05)] whitespace-nowrap text-left text-xs pointer-events-none min-w-[190px]">
+                            
+                            <!-- Header -->
+                            <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-2 mb-2.5">
+                                <span class="font-bold text-gray-900 text-sm tracking-tight">{{ $item['label'] }} {{ now()->year }}</span>
                                 @if ($isCurrentMonth)
-                                    <span class="text-[9px] px-1.5 py-0.5 bg-terracotta-50 text-terracotta-700 border border-terracotta-200 rounded font-semibold">Bulan Ini</span>
+                                    <span class="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-terracotta-50 text-terracotta-700 border border-terracotta-200/80 rounded-full font-bold">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-terracotta-500 animate-pulse"></span>
+                                        Bulan Ini
+                                    </span>
                                 @endif
                             </div>
 
+                            <!-- Financial Breakdown -->
                             @if ($isCurrency)
-                                <div class="space-y-1.5 text-[11px]">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <div class="flex items-center gap-1.5 text-gray-600">
-                                            <span class="w-2 h-2 rounded-full bg-terracotta-500 shrink-0"></span>
+                                <div class="space-y-2 text-[11px]">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <div class="flex items-center gap-1.5 text-gray-500 font-medium">
+                                            <span class="w-2 h-2 rounded-full bg-terracotta-500 shrink-0 shadow-2xs"></span>
                                             <span>{{ $legend1 }}</span>
                                         </div>
-                                        <span class="font-bold text-gray-900">Rp {{ number_format($item['raw_revenue'] ?? ($val1 * 1000000), 0, ',', '.') }}</span>
+                                        <span class="font-extrabold text-gray-900">Rp {{ number_format($rawRev, 0, ',', '.') }}</span>
                                     </div>
-                                    <div class="flex items-center justify-between gap-3">
-                                        <div class="flex items-center gap-1.5 text-gray-600">
-                                            <span class="w-2 h-2 rounded-full bg-slate-800 shrink-0"></span>
+                                    <div class="flex items-center justify-between gap-4">
+                                        <div class="flex items-center gap-1.5 text-gray-500 font-medium">
+                                            <span class="w-2 h-2 rounded-full bg-slate-800 shrink-0 shadow-2xs"></span>
                                             <span>{{ $legend2 }}</span>
                                         </div>
-                                        <span class="font-bold text-gray-900">Rp {{ number_format($item['raw_expenses'] ?? ($val2 * 1000000), 0, ',', '.') }}</span>
+                                        <span class="font-extrabold text-gray-900">Rp {{ number_format($rawExp, 0, ',', '.') }}</span>
                                     </div>
-                                    @if (isset($item['raw_profit']))
-                                        <div class="flex items-center justify-between gap-3 pt-1 border-t border-gray-100 text-emerald-600 font-semibold">
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                                                <span>Estimasi Laba</span>
-                                            </div>
-                                            <span>Rp {{ number_format($item['raw_profit'], 0, ',', '.') }}</span>
+                                    <div class="flex items-center justify-between gap-4 pt-2 border-t border-gray-100 text-emerald-600 font-semibold bg-emerald-50/60 px-2.5 py-1.5 rounded-xl">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                                            <span>Estimasi Laba</span>
                                         </div>
-                                    @endif
+                                        <span class="font-extrabold text-emerald-700">Rp {{ number_format($rawProf, 0, ',', '.') }}</span>
+                                    </div>
                                 </div>
                             @else
                                 <div class="space-y-1.5 text-[11px]">
                                     <div class="flex items-center justify-between gap-3">
-                                        <div class="flex items-center gap-1.5 text-gray-600">
+                                        <div class="flex items-center gap-1.5 text-gray-500 font-medium">
                                             <span class="w-2 h-2 rounded-full bg-terracotta-500 shrink-0"></span>
                                             <span>{{ $legend1 }}</span>
                                         </div>
                                         <span class="font-bold text-gray-900">{{ $val1 }}</span>
                                     </div>
                                     <div class="flex items-center justify-between gap-3">
-                                        <div class="flex items-center gap-1.5 text-gray-600">
+                                        <div class="flex items-center gap-1.5 text-gray-500 font-medium">
                                             <span class="w-2 h-2 rounded-full bg-slate-800 shrink-0"></span>
                                             <span>{{ $legend2 }}</span>
                                         </div>
@@ -161,27 +198,50 @@
                             @endif
                         </div>
 
-                        <!-- Top Bar (Revenue - Terracotta Gradient with Solid Hover/Active) -->
-                        <div class="w-full max-w-[28px] rounded-t-lg transition-all duration-200"
-                             :class="(hoveredIndex === {{ $index }} || (hoveredIndex === null && activeIndex === {{ $index }})) ? 'bg-[#B9381E] shadow-sm' : 'bg-gradient-to-t from-[#E26649] to-[#F1937C] opacity-80 group-hover:opacity-100'"
-                             style="height: {{ $topHeight }}px;">
+                        <!-- Upper Zone (Positive Revenue): Grows Upwards to Baseline -->
+                        <div class="h-[155px] w-full flex flex-col justify-end items-center relative">
+                            <!-- Apex Dot on Hover -->
+                            <div x-show="hoveredIndex === {{ $index }}"
+                                 x-cloak
+                                 class="absolute w-3 h-3 rounded-full bg-gray-900 border-2 border-white ring-4 ring-terracotta-500/20 shadow-md z-30 pointer-events-none -translate-y-1/2 transition-all duration-150"
+                                 :style="`bottom: ${ {{ $topHeight }} - 6 }px;`"></div>
+
+                            <!-- Revenue Upper Bar (Rounded Top) -->
+                            <div class="w-6 sm:w-7 rounded-t-lg transition-all duration-300 relative overflow-hidden"
+                                 :class="hoveredIndex === {{ $index }}
+                                    ? 'bg-terracotta-500 shadow-[0_6px_16px_-2px_rgba(204,68,32,0.45)] scale-x-105'
+                                    : 'bg-gradient-to-t from-[#DE6544] to-[#E88C74] hover:brightness-105'"
+                                 style="height: {{ $topHeight }}px;">
+                                <!-- Micro Rim Highlight -->
+                                <div class="absolute inset-x-0 top-0 h-1 bg-white/30 pointer-events-none"></div>
+                            </div>
                         </div>
 
-                        <!-- Center Baseline Divider -->
-                        <div class="w-full h-[2px] transition-colors duration-200"
-                             :class="(hoveredIndex === {{ $index }} || (hoveredIndex === null && activeIndex === {{ $index }})) ? 'bg-[#B9381E]' : 'bg-gray-200'"></div>
+                        <!-- Hairline Baseline Divider -->
+                        <div class="w-6 sm:w-7 h-[1.5px] bg-white z-10"></div>
 
-                        <!-- Bottom Bar (Expenses - Slate/Gray Gradient with Dark Solid Hover/Active) -->
-                        <div class="w-full max-w-[28px] rounded-b-lg transition-all duration-200"
-                             :class="(hoveredIndex === {{ $index }} || (hoveredIndex === null && activeIndex === {{ $index }})) ? 'bg-[#202938] shadow-sm' : 'bg-gradient-to-b from-gray-200 to-gray-100 group-hover:bg-gray-300'"
-                             style="height: {{ $botHeight }}px;">
+                        <!-- Lower Zone (Expenses): Grows Downwards from Baseline -->
+                        <div class="h-[52px] w-full flex flex-col justify-start items-center">
+                            @if ($botHeight > 0)
+                                <!-- Expenses Lower Bar (Rounded Bottom) -->
+                                <div class="w-6 sm:w-7 rounded-b-lg transition-all duration-300 relative overflow-hidden"
+                                     :class="hoveredIndex === {{ $index }}
+                                        ? 'bg-slate-800 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.35)] scale-x-105'
+                                        : 'bg-[#CBD5E1] hover:bg-[#94A3B8]'"
+                                     style="height: {{ $botHeight }}px;">
+                                </div>
+                            @endif
                         </div>
 
-                        <!-- Month Label -->
-                        <span class="text-xs mt-3 transition-colors duration-200"
-                              :class="(hoveredIndex === {{ $index }} || (hoveredIndex === null && activeIndex === {{ $index }})) ? 'text-[#B9381E] font-bold' : 'text-gray-400 group-hover:text-gray-700 font-medium'">
-                            {{ $item['label'] }}
-                        </span>
+                        <!-- X-Axis Month Label: Strictly Fixed Row at Bottom -->
+                        <div class="h-8 flex items-center justify-center pt-2 text-center">
+                            <span class="transition-colors duration-150 text-xs font-semibold"
+                                  :class="hoveredIndex === {{ $index }}
+                                    ? 'text-terracotta-600 font-bold scale-105'
+                                    : 'text-gray-400 group-hover:text-gray-700'">
+                                {{ $item['label'] }}
+                            </span>
+                        </div>
                     </div>
                 @endforeach
             </div>

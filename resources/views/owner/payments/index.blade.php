@@ -1,19 +1,19 @@
-<x-owner-layout :tenant="$tenant" title="Manajemen Pembayaran & Tagihan">
+<x-owner-layout :tenant="$tenant" title="Monitoring Pembayaran & Tagihan">
     <x-slot:breadcrumbSub>Pembayaran</x-slot:breadcrumbSub>
 
-    <div class="space-y-6 max-w-7xl mx-auto" x-data="{ createModalOpen: false }">
+    <div class="space-y-6 max-w-7xl mx-auto">
         
         <!-- Header Section -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200/70">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Manajemen Tagihan & Pembayaran</h1>
-                <p class="text-xs text-gray-500 mt-1">Kelola invoice siswa, catat penerimaan kas, verifikasi status pembayaran, dan pantau piutang di {{ $tenant->name ?? 'Prime Academy' }}.</p>
+                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Monitoring Pembayaran & Tagihan</h1>
+                <p class="text-xs text-gray-500 mt-1">Pantau penerimaan kas, status invoice siswa, dan total piutang di seluruh cabang {{ $tenant->name ?? 'Prime Academy' }}.</p>
             </div>
-            <div class="flex items-center gap-3 shrink-0">
-                <x-cressco.button variant="primary" size="md" @click="createModalOpen = true">
-                    <x-cressco.icon-helper name="plus" class="w-4 h-4 mr-1.5" />
-                    <span>Buat Tagihan Baru</span>
-                </x-cressco.button>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                    <x-cressco.icon-helper name="shield" class="w-3.5 h-3.5 text-gray-500" />
+                    Mode Pengawasan Keuangan
+                </span>
             </div>
         </div>
 
@@ -137,7 +137,7 @@
                             <tr class="hover:bg-gray-50/50 transition">
                                 <td class="px-5 py-4 whitespace-nowrap">
                                     <div class="font-bold text-gray-900">Periode: {{ $payment->period }}</div>
-                                    <div class="text-[11px] text-gray-500">ID: {{ substr($payment->id, 0, 8) }}...</div>
+                                    <div class="text-[11px] text-gray-500 font-mono">#{{ substr($payment->id, 0, 8) }}</div>
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="font-bold text-gray-900">{{ $payment->student->name ?? '-' }}</div>
@@ -185,27 +185,17 @@
                                     @endif
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-right">
-                                    <div class="flex items-center justify-end gap-2">
-                                        @if ($payment->status !== 'lunas')
-                                            <form method="POST" action="{{ route('owner.payments.verify', $payment) }}" onsubmit="return confirm('Tandai tagihan ini sebagai LUNAS?');">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">
-                                                    Verifikasi Lunas
-                                                </button>
-                                            </form>
-                                        @endif
-                                        <a href="{{ route('owner.payments.show', $payment) }}" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition">
-                                            Detail & Reminder
-                                        </a>
-                                    </div>
+                                    <a href="{{ route('owner.payments.show', $payment) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition">
+                                        <x-cressco.icon-helper name="search" class="w-3.5 h-3.5" />
+                                        <span>Detail Invoice</span>
+                                    </a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
                                 <td colspan="7" class="px-5 py-8 text-center text-gray-500">
                                     <p class="font-medium">Belum ada data tagihan / pembayaran yang cocok.</p>
-                                    <p class="text-[11px] text-gray-400 mt-1">Silakan sesuaikan filter pencarian atau buat tagihan pembayaran baru.</p>
+                                    <p class="text-[11px] text-gray-400 mt-1">Pencatatan dan pembuatan invoice baru dilakukan oleh Administrator Cabang.</p>
                                 </td>
                             </tr>
                         @endforelse
@@ -218,98 +208,6 @@
                     {{ $payments->links() }}
                 </div>
             @endif
-        </div>
-
-        <!-- Modal Buat Tagihan Baru -->
-        <div x-show="createModalOpen"
-             x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs">
-            <div @click.outside="createModalOpen = false"
-                 class="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-100 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-                    <h3 class="text-base font-bold text-gray-900">Buat Tagihan Pembayaran Baru</h3>
-                    <button type="button" @click="createModalOpen = false" class="text-gray-400 hover:text-gray-600 p-1">
-                        <x-cressco.icon-helper name="close" class="w-4 h-4" />
-                    </button>
-                </div>
-
-                <form method="POST" action="{{ route('owner.payments.store') }}" class="space-y-4 text-xs">
-                    @csrf
-                    
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Pilih Cabang <span class="text-rose-500">*</span></label>
-                        <select name="branch_id" required class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500">
-                            <option value="">-- Pilih Cabang --</option>
-                            @foreach ($branches as $b)
-                                <option value="{{ $b->id }}">{{ $b->name }} ({{ $b->city }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Pilih Siswa <span class="text-rose-500">*</span></label>
-                        <select name="student_id" required class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500">
-                            <option value="">-- Pilih Siswa --</option>
-                            @foreach ($students as $st)
-                                <option value="{{ $st->id }}">{{ $st->name }} (Wali: {{ $st->parent_name ?? '-' }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Kelas Terkait (Opsional)</label>
-                        <select name="enrollment_id" class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500">
-                            <option value="">-- Tidak Terikat Kelas Tertentu / Tagihan Umum --</option>
-                            @foreach ($enrollments as $en)
-                                <option value="{{ $en->id }}">
-                                    {{ $en->student->name ?? 'Siswa' }} - {{ $en->classModel->name ?? 'Kelas' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block font-semibold text-gray-700 mb-1">Periode Tagihan <span class="text-rose-500">*</span></label>
-                            <input type="text" name="period" value="{{ date('Y-m') }}" required placeholder="Contoh: 2026-02" class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500" />
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-gray-700 mb-1">Nominal (Rp) <span class="text-rose-500">*</span></label>
-                            <input type="number" name="amount" required min="0" step="5000" placeholder="500000" class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500" />
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block font-semibold text-gray-700 mb-1">Jatuh Tempo <span class="text-rose-500">*</span></label>
-                            <input type="date" name="due_date" value="{{ date('Y-m-10', strtotime('+1 month')) }}" required class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500" />
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-gray-700 mb-1">Status Awal <span class="text-rose-500">*</span></label>
-                            <select name="status" required class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500">
-                                <option value="belum_bayar" selected>Belum Bayar</option>
-                                <option value="menunggu_verifikasi">Menunggu Verifikasi</option>
-                                <option value="lunas">Lunas (Sudah Dibayar)</option>
-                                <option value="terlambat">Terlambat</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Catatan Tagihan</label>
-                        <textarea name="notes" rows="2" placeholder="Catatan opsional (misal: SPP Bulan Februari + Modul)..." class="w-full p-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500"></textarea>
-                    </div>
-
-                    <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
-                        <button type="button" @click="createModalOpen = false" class="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold transition">
-                            Batal
-                        </button>
-                        <x-cressco.button variant="primary" type="submit">
-                            Simpan Tagihan
-                        </x-cressco.button>
-                    </div>
-                </form>
-            </div>
         </div>
 
     </div>

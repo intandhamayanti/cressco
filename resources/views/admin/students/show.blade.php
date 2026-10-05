@@ -9,6 +9,7 @@
          x-data="{
              editModalOpen: false,
              toggleModalOpen: false,
+             addEnrollmentModalOpen: false,
              editStudent: {
                  id: '{{ $student->id }}',
                  branch_id: '{{ $student->branch_id }}',
@@ -26,6 +27,7 @@
              closeAll() {
                  this.editModalOpen = false;
                  this.toggleModalOpen = false;
+                 this.addEnrollmentModalOpen = false;
              }
          }">
         
@@ -153,9 +155,17 @@
                             <h2 class="text-sm font-bold text-gray-900">Kelas & Enrollment</h2>
                             <p class="text-xs text-gray-500">Daftar kelas bimbingan belajar yang diikuti siswa.</p>
                         </div>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700">
-                            {{ $student->enrollments->count() }} Pendaftaran
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700">
+                                {{ $student->enrollments->count() }} Pendaftaran
+                            </span>
+                            @if($availableClasses->isNotEmpty())
+                                <button type="button" @click="addEnrollmentModalOpen = true" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-terracotta-600 hover:text-terracotta-700 bg-terracotta-50 hover:bg-terracotta-100 rounded-lg transition cursor-pointer">
+                                    <x-cressco.icon-helper name="plus" class="w-3.5 h-3.5" />
+                                    <span>Tambah Kelas</span>
+                                </button>
+                            @endif
+                        </div>
                     </div>
 
                     @if ($student->enrollments->isNotEmpty())
@@ -163,7 +173,14 @@
                             @foreach ($student->enrollments as $enr)
                                 <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                     <div>
-                                        <h3 class="text-xs font-bold text-gray-900">{{ $enr->classModel?->name ?? 'Kelas' }}</h3>
+                                        <div class="flex items-center gap-2">
+                                            <a href="{{ $enr->classModel ? route('admin.classes.show', $enr->classModel) : '#' }}" class="text-xs font-bold text-gray-900 hover:text-terracotta-600 transition">
+                                                {{ $enr->classModel?->name ?? 'Kelas' }}
+                                            </a>
+                                            <x-cressco.badge :variant="$enr->status === 'active' ? 'success' : ($enr->status === 'completed' ? 'info' : 'gray')" size="xs" dot>
+                                                {{ ucfirst($enr->status) }}
+                                            </x-cressco.badge>
+                                        </div>
                                         <p class="text-[11px] text-gray-500 mt-0.5">
                                             Mata Pelajaran: {{ $enr->classModel?->subject ?? '-' }} • Level: {{ $enr->classModel?->level ?? '-' }}
                                         </p>
@@ -171,10 +188,29 @@
                                             Periode: {{ $enr->started_at ? $enr->started_at->translatedFormat('d M Y') : '-' }} s/d {{ $enr->ended_at ? $enr->ended_at->translatedFormat('d M Y') : 'Sekarang' }}
                                         </span>
                                     </div>
-                                    <div>
-                                        <x-cressco.badge :variant="$enr->status === 'active' ? 'success' : ($enr->status === 'completed' ? 'info' : 'gray')" dot>
-                                            {{ ucfirst($enr->status) }}
-                                        </x-cressco.badge>
+                                    <div class="flex items-center gap-1.5">
+                                        <form action="{{ route('admin.students.enrollments.toggle', [$student, $enr]) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit"
+                                                    class="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-2xs cursor-pointer"
+                                                    title="{{ $enr->status === 'active' ? 'Nonaktifkan Kelas' : 'Aktifkan Kembali' }}">
+                                                <x-cressco.icon-helper name="{{ $enr->status === 'active' ? 'slash' : 'check' }}" class="w-3.5 h-3.5" />
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ route('admin.students.enrollments.destroy', [$student, $enr]) }}"
+                                              method="POST"
+                                              onsubmit="return confirm('Apakah Anda yakin ingin menghapus pendaftaran siswa dari kelas ini?')"
+                                              class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    class="p-1.5 rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors shadow-2xs cursor-pointer"
+                                                    title="Hapus Enrollment">
+                                                <x-cressco.icon-helper name="trash-2" class="w-3.5 h-3.5" />
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             @endforeach
@@ -182,6 +218,13 @@
                     @else
                         <div class="p-6 text-center text-xs text-gray-400 italic">
                             Siswa ini belum terdaftar di kelas manapun.
+                            @if($availableClasses->isNotEmpty())
+                                <div class="mt-2">
+                                    <button type="button" @click="addEnrollmentModalOpen = true" class="text-xs font-bold text-terracotta-600 hover:underline">
+                                        Daftarkan ke kelas sekarang
+                                    </button>
+                                </div>
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -492,6 +535,82 @@
                                     class="px-4 py-2 text-xs font-bold rounded-xl shadow-2xs transition cursor-pointer {{ $student->status === 'active' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white' }}">
                                 {{ $student->status === 'active' ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan' }}
                             </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Enrollment Modal -->
+        <div x-show="addEnrollmentModalOpen"
+             x-cloak
+             class="fixed inset-0 z-50 overflow-y-auto"
+             role="dialog"
+             aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div x-show="addEnrollmentModalOpen"
+                     x-transition:enter="ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity"
+                     @click="addEnrollmentModalOpen = false"></div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div x-show="addEnrollmentModalOpen"
+                     x-transition:enter="ease-out duration-300"
+                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave="ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle bg-white rounded-2xl shadow-2xl transform transition-all space-y-4">
+
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-terracotta-50 text-terracotta-600 flex items-center justify-center font-bold">
+                                <x-cressco.icon-helper name="book-open" class="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-900">Daftarkan ke Kelas Baru</h3>
+                                <p class="text-xs text-gray-500">Pilih kelas yang tersedia di cabang {{ $student->branch?->name }}.</p>
+                            </div>
+                        </div>
+                        <button type="button" @click="addEnrollmentModalOpen = false" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg">
+                            <x-cressco.icon-helper name="close" class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <form method="POST" action="{{ route('admin.students.enrollments.store', $student) }}" class="space-y-4">
+                        @csrf
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Pilih Kelas <span class="text-red-500">*</span></label>
+                            <select name="class_id" required class="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500">
+                                <option value="" disabled selected>-- Pilih Kelas Belajar --</option>
+                                @foreach ($availableClasses as $ac)
+                                    <option value="{{ $ac->id }}">
+                                        {{ $ac->name }} - {{ $ac->subject ?: 'Umum' }} ({{ $ac->level ?: 'Semua Level' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Tanggal Mulai Efektif</label>
+                            <input type="date" name="started_at" value="{{ date('Y-m-d') }}" class="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500">
+                        </div>
+
+                        <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                            <button type="button" @click="addEnrollmentModalOpen = false" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 transition cursor-pointer">
+                                Batal
+                            </button>
+                            <x-cressco.button type="submit" variant="primary" size="md">
+                                Daftarkan ke Kelas
+                            </x-cressco.button>
                         </div>
                     </form>
                 </div>

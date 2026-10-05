@@ -364,4 +364,133 @@ class AdminClassManagementTest extends TestCase
         $response = $this->actingAs($this->adminMalang)->get("/admin/classes/{$otherClass->id}");
         $response->assertNotFound();
     }
+
+    public function test_admin_can_batch_enroll_students_from_class_detail(): void
+    {
+        $class = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '12 SMA - Biologi Intensif',
+            'status' => 'active',
+        ]);
+
+        $student1 = Student::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => 'Siswa Batch 1',
+            'status' => 'active',
+        ]);
+
+        $student2 = Student::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => 'Siswa Batch 2',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->adminMalang)->post("/admin/classes/{$class->id}/enroll-students", [
+            'student_ids' => [$student1->id, $student2->id],
+            'started_at' => '2026-03-01',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('enrollments', [
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'class_id' => $class->id,
+            'student_id' => $student1->id,
+            'status' => 'active',
+        ]);
+
+        $this->assertDatabaseHas('enrollments', [
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'class_id' => $class->id,
+            'student_id' => $student2->id,
+            'status' => 'active',
+        ]);
+
+        $this->assertEquals(2, $class->enrollments()->count());
+    }
+
+    public function test_admin_can_quick_create_student_from_class_detail_and_auto_enroll(): void
+    {
+        $class = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => 'Kelas Quick Add',
+            'status' => 'active',
+        ]);
+
+        $payload = [
+            'name' => 'Siswa Baru Dari Kelas',
+            'gender' => 'Perempuan',
+            'phone' => '081299887766',
+            'parent_name' => 'Ibu Rahma',
+            'parent_phone' => '081299887767',
+            'status' => 'active',
+        ];
+
+        $response = $this->actingAs($this->adminMalang)->post("/admin/classes/{$class->id}/students", $payload);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $student = Student::where('name', 'Siswa Baru Dari Kelas')->first();
+        $this->assertNotNull($student);
+        $this->assertEquals($this->branchMalang->id, $student->branch_id);
+
+        $this->assertDatabaseHas('enrollments', [
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'class_id' => $class->id,
+            'student_id' => $student->id,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_admin_can_toggle_and_destroy_class_enrollment(): void
+    {
+        $class = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => 'Kelas Test Enrollment Management',
+            'status' => 'active',
+        ]);
+
+        $student = Student::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => 'Siswa Test Enrollment',
+            'status' => 'active',
+        ]);
+
+        $enrollment = Enrollment::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'class_id' => $class->id,
+            'student_id' => $student->id,
+            'status' => 'active',
+            'started_at' => now()->toDateString(),
+        ]);
+
+        // Toggle status
+        $response = $this->actingAs($this->adminMalang)->patch("/admin/classes/{$class->id}/enrollments/{$enrollment->id}/toggle");
+        $response->assertRedirect();
+        $this->assertEquals('withdrawn', $enrollment->fresh()->status);
+
+        // Destroy enrollment
+        $response = $this->actingAs($this->adminMalang)->delete("/admin/classes/{$class->id}/enrollments/{$enrollment->id}");
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('enrollments', ['id' => $enrollment->id]);
+    }
 }

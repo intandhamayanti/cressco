@@ -17,13 +17,18 @@
                  this.toggleModalOpen = false;
                  this.createModalOpen = false;
                  const overrideAssignment = tutor.honor_assignments ? tutor.honor_assignments.find(a => a.assignment_type === 'tutor_override') : null;
+                 const scheme = overrideAssignment ? overrideAssignment.honor_scheme : null;
                  this.editTutor = {
                      id: tutor.id,
                      name: tutor.name,
                      email: tutor.email,
                      phone: tutor.phone || '',
-                     honor_scheme_id: overrideAssignment ? overrideAssignment.honor_scheme_id : '',
-                     status: tutor.status || 'active'
+                     status: tutor.status || 'active',
+                     honor_mode: overrideAssignment ? 'other' : 'default',
+                     method: scheme ? scheme.method : 'per_session',
+                     rate: scheme ? (scheme.rate || scheme.fixed_amount || 75000) : 75000,
+                     effective_from: overrideAssignment && overrideAssignment.effective_from ? overrideAssignment.effective_from.substring(0, 10) : '{{ now()->startOfMonth()->toDateString() }}',
+                     honor_scheme_id: overrideAssignment ? overrideAssignment.honor_scheme_id : ''
                  };
                  this.editModalOpen = true;
              },
@@ -54,9 +59,18 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <x-cressco.button variant="primary" size="md" @click="openCreate()">
-                    <x-cressco.icon-helper name="plus" class="w-4 h-4 mr-1.5" />
-                    <span>Tambah Tutor Baru</span>
+                <x-cressco.button
+                    as="a"
+                    :href="route('owner.imports.create', 'tutors')"
+                    variant="outline"
+                    size="md"
+                    leadingIcon="upload"
+                >
+                    Import Tutor
+                </x-cressco.button>
+
+                <x-cressco.button variant="primary" size="md" leadingIcon="plus" @click="openCreate()">
+                    Tambah Tutor Baru
                 </x-cressco.button>
             </div>
         </div>
@@ -167,7 +181,7 @@
                         <tr class="bg-gray-50/80 border-b border-gray-200/70 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                             <th class="py-3.5 px-5">Tutor & Kontak</th>
                             <th class="py-3.5 px-4">Kelas Diampu</th>
-                            <th class="py-3.5 px-4">Skema Honor</th>
+                            <th class="py-3.5 px-4">Pengaturan Honor</th>
                             <th class="py-3.5 px-4 text-center">Sesi Selesai</th>
                             <th class="py-3.5 px-4">Status</th>
                             <th class="py-3.5 px-5 text-right">Aksi</th>
@@ -246,9 +260,9 @@
                                             </div>
                                             <div class="mt-0.5">
                                                 @if ($overrideAssignment)
-                                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Override Khusus</span>
+                                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Pengaturan Lain</span>
                                                 @else
-                                                    <span class="text-[11px] text-gray-400">Default Tenant</span>
+                                                    <span class="text-[11px] text-gray-500 font-medium">Default Bimbel</span>
                                                 @endif
                                             </div>
                                         </div>
@@ -396,15 +410,79 @@
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1">Skema Honor Khusus (Opsional)</label>
-                        <select name="honor_scheme_id" class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
-                            <option value="">Gunakan Skema Default Tenant ({{ $defaultScheme?->name ?? 'Reguler' }})</option>
-                            @foreach ($honorSchemes as $scheme)
-                                <option value="{{ $scheme->id }}">{{ $scheme->name }} ({{ ucfirst(str_replace('_', ' ', $scheme->method)) }})</option>
-                            @endforeach
-                        </select>
-                        <p class="text-[11px] text-gray-400 mt-1">Kosongkan jika tutor mengikuti skema honor standar bimbel.</p>
+                    <!-- Pengaturan Honor Terintegrasi -->
+                    <div class="pt-3 border-t border-gray-100" x-data="{
+                        createHonorMode: 'default',
+                        createMethod: 'per_session',
+                        createRate: 75000,
+                        createEffectiveFrom: '{{ now()->startOfMonth()->toDateString() }}'
+                    }">
+                        <label class="block font-bold text-gray-700 mb-2">Pengaturan Honor Tutor</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <label class="relative flex flex-col p-3.5 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="createHonorMode === 'default' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-xs">Default Bimbel</span>
+                                    <input type="radio" name="honor_mode" value="default" x-model="createHonorMode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Mengikuti honor standar bimbel 
+                                    @if ($defaultScheme)
+                                        ({{ $defaultScheme->method === 'per_session' ? 'Per Sesi Mengajar' : ($defaultScheme->method === 'per_student' ? 'Per Siswa' : ($defaultScheme->method === 'fixed_monthly' ? 'Bulanan Tetap' : ucfirst($defaultScheme->method))) }} - Rp {{ number_format($defaultScheme->rate ?: $defaultScheme->fixed_amount, 0, ',', '.') }}).
+                                    @else
+                                        yang ditentukan di Pengaturan Bimbel.
+                                    @endif
+                                </p>
+                            </label>
+
+                            <label class="relative flex flex-col p-3.5 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="createHonorMode === 'other' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-xs">Pengaturan Lain</span>
+                                    <input type="radio" name="honor_mode" value="other" x-model="createHonorMode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Tentukan tarif honor dan tanggal berlaku tersendiri untuk tutor ini.
+                                </p>
+                            </label>
+                        </div>
+
+                        <!-- Form Pengaturan Lain -->
+                        <div x-show="createHonorMode === 'other'" x-transition class="space-y-3 bg-gray-50/70 p-3.5 rounded-2xl border border-gray-100 mb-3">
+                            <div>
+                                <label class="block font-bold text-gray-700 mb-1">Metode Honor <span class="text-red-500">*</span></label>
+                                <select name="method" x-model="createMethod" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
+                                    <option value="per_session">Per Sesi Mengajar</option>
+                                    <option value="per_student" disabled class="text-gray-400 bg-gray-100">Per Siswa (Coming Soon)</option>
+                                    <option value="fixed_monthly" disabled class="text-gray-400 bg-gray-100">Bulanan Tetap (Coming Soon)</option>
+                                    <option value="revenue_share" disabled class="text-gray-400 bg-gray-100">Bagi Hasil / Revenue Share (Coming Soon)</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-bold text-gray-700 mb-1">Tarif Honor Per Sesi <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
+                                        <input type="number"
+                                               name="rate"
+                                               x-model="createRate"
+                                               min="0"
+                                               step="1000"
+                                               placeholder="75000"
+                                               class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block font-bold text-gray-700 mb-1">Mulai Berlaku <span class="text-red-500">*</span></label>
+                                    <input type="date"
+                                           name="effective_from"
+                                           x-model="createEffectiveFrom"
+                                           class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -515,14 +593,74 @@
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1">Skema Honor Khusus (Opsional)</label>
-                        <select name="honor_scheme_id" x-model="editTutor.honor_scheme_id" class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
-                            <option value="">Gunakan Skema Default Tenant ({{ $defaultScheme?->name ?? 'Reguler' }})</option>
-                            @foreach ($honorSchemes as $scheme)
-                                <option value="{{ $scheme->id }}">{{ $scheme->name }} ({{ ucfirst(str_replace('_', ' ', $scheme->method)) }})</option>
-                            @endforeach
-                        </select>
+                    <!-- Pengaturan Honor Terintegrasi di Edit Modal -->
+                    <div class="pt-3 border-t border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-2">Pengaturan Honor Tutor</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <label class="relative flex flex-col p-3.5 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="editTutor.honor_mode === 'default' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-xs">Default Bimbel</span>
+                                    <input type="radio" name="honor_mode" value="default" x-model="editTutor.honor_mode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Mengikuti honor standar bimbel 
+                                    @if ($defaultScheme)
+                                        ({{ $defaultScheme->method === 'per_session' ? 'Per Sesi Mengajar' : ($defaultScheme->method === 'per_student' ? 'Per Siswa' : ($defaultScheme->method === 'fixed_monthly' ? 'Bulanan Tetap' : ucfirst($defaultScheme->method))) }} - Rp {{ number_format($defaultScheme->rate ?: $defaultScheme->fixed_amount, 0, ',', '.') }}).
+                                    @else
+                                        yang ditentukan di Pengaturan Bimbel.
+                                    @endif
+                                </p>
+                            </label>
+
+                            <label class="relative flex flex-col p-3.5 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="editTutor.honor_mode === 'other' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-xs">Pengaturan Lain</span>
+                                    <input type="radio" name="honor_mode" value="other" x-model="editTutor.honor_mode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Tentukan tarif honor dan tanggal berlaku tersendiri untuk tutor ini.
+                                </p>
+                            </label>
+                        </div>
+
+                        <!-- Form Pengaturan Lain -->
+                        <div x-show="editTutor.honor_mode === 'other'" x-transition class="space-y-3 bg-gray-50/70 p-3.5 rounded-2xl border border-gray-100 mb-3">
+                            <div>
+                                <label class="block font-bold text-gray-700 mb-1">Metode Honor <span class="text-red-500">*</span></label>
+                                <select name="method" x-model="editTutor.method" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
+                                    <option value="per_session">Per Sesi Mengajar</option>
+                                    <option value="per_student" disabled class="text-gray-400 bg-gray-100">Per Siswa (Coming Soon)</option>
+                                    <option value="fixed_monthly" disabled class="text-gray-400 bg-gray-100">Bulanan Tetap (Coming Soon)</option>
+                                    <option value="revenue_share" disabled class="text-gray-400 bg-gray-100">Bagi Hasil / Revenue Share (Coming Soon)</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-bold text-gray-700 mb-1">Tarif Honor Per Sesi <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
+                                        <input type="number"
+                                               name="rate"
+                                               x-model="editTutor.rate"
+                                               min="0"
+                                               step="1000"
+                                               placeholder="75000"
+                                               class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block font-bold text-gray-700 mb-1">Mulai Berlaku <span class="text-red-500">*</span></label>
+                                    <input type="date"
+                                           name="effective_from"
+                                           x-model="editTutor.effective_from"
+                                           class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-gray-100">

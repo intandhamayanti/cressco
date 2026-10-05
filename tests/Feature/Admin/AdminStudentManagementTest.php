@@ -4,10 +4,13 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Branch;
 use App\Models\BranchUser;
+use App\Models\Classes;
+use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -407,5 +410,157 @@ class AdminStudentManagementTest extends TestCase
 
         $response->assertNotFound();
         $this->assertEquals('active', $studentMakassar->fresh()->status);
+    }
+
+    public function test_admin_can_create_student_with_multi_class_enrollment(): void
+    {
+        $class1 = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '10 SMA - Matematika',
+            'status' => 'active',
+        ]);
+
+        $class2 = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '10 SMA - Fisika',
+            'status' => 'active',
+        ]);
+
+        $payload = [
+            'name' => 'Rina Salsabila',
+            'branch_id' => $this->branchMalang->id,
+            'gender' => 'Perempuan',
+            'phone' => '081234567899',
+            'status' => 'active',
+            'class_ids' => [$class1->id, $class2->id],
+        ];
+
+        $response = $this->actingAs($this->adminMalang)->post('/admin/students', $payload);
+
+        $response->assertRedirect(route('admin.students.index'));
+        $student = Student::where('name', 'Rina Salsabila')->first();
+        $this->assertNotNull($student);
+
+        $this->assertDatabaseHas('enrollments', [
+            'student_id' => $student->id,
+            'class_id' => $class1->id,
+            'branch_id' => $this->branchMalang->id,
+            'status' => 'active',
+        ]);
+
+        $this->assertDatabaseHas('enrollments', [
+            'student_id' => $student->id,
+            'class_id' => $class2->id,
+            'branch_id' => $this->branchMalang->id,
+            'status' => 'active',
+        ]);
+
+        $this->assertEquals(2, $student->enrollments()->count());
+    }
+
+    public function test_admin_can_manage_student_enrollment_from_detail(): void
+    {
+        $student = Student::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => 'Indra Wijaya',
+            'status' => 'active',
+        ]);
+
+        $class = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '11 SMA - Kimia',
+            'status' => 'active',
+        ]);
+
+        // Enroll to class
+        $response = $this->actingAs($this->adminMalang)->post("/admin/students/{$student->id}/enrollments", [
+            'class_id' => $class->id,
+            'started_at' => '2026-03-01',
+        ]);
+
+        $response->assertRedirect();
+        $enrollment = Enrollment::where('student_id', $student->id)->where('class_id', $class->id)->first();
+        $this->assertNotNull($enrollment);
+        $this->assertEquals('active', $enrollment->status);
+
+        // Toggle enrollment status
+        $this->actingAs($this->adminMalang)->patch("/admin/students/{$student->id}/enrollments/{$enrollment->id}/toggle");
+        $this->assertEquals('withdrawn', $enrollment->fresh()->status);
+
+        // Destroy enrollment
+        $this->actingAs($this->adminMalang)->delete("/admin/students/{$student->id}/enrollments/{$enrollment->id}");
+        $this->assertDatabaseMissing('enrollments', ['id' => $enrollment->id]);
+    }
+
+    public function test_admin_can_download_import_template(): void
+    {
+        $response = $this->actingAs($this->adminMalang)->get('/admin/students/import/template');
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString('kelas', $response->getContent());
+        $this->assertStringContainsString('nama_siswa', $response->getContent());
+    }
+
+    public function test_admin_can_preview_and_commit_import_with_multi_class(): void
+    {
+        $class1 = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '10 SMA - Matematika',
+            'status' => 'active',
+        ]);
+
+        $class2 = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '10 SMA - Fisika',
+            'status' => 'active',
+        ]);
+
+        $csvContent = "nama_siswa,cabang,jenis_kelamin,telepon,nama_orang_tua,telepon_orang_tua,alamat,kelas,catatan\n".
+                      "Imported Student 1,{$this->branchMalang->name},Laki-laki,081234567111,Ortu 1,081234567112,Jl. Mawar 1,\"{$class1->name}; {$class2->name}\",Catatan 1\n";
+
+        $file = UploadedFile::fake()->createWithContent('students.csv', $csvContent);
+
+        // Preview
+        $previewResponse = $this->actingAs($this->adminMalang)->post('/admin/students/import/preview', [
+            'file' => $file,
+        ]);
+
+        $previewResponse->assertOk();
+        $previewResponse->assertViewIs('admin.students.import-preview');
+
+        // Commit
+        $commitResponse = $this->actingAs($this->adminMalang)->post('/admin/students/import/commit');
+
+        $commitResponse->assertRedirect(route('admin.students.index'));
+        $commitResponse->assertSessionHas('success');
+
+        $importedStudent = Student::where('name', 'Imported Student 1')->first();
+        $this->assertNotNull($importedStudent);
+        $this->assertEquals($this->branchMalang->id, $importedStudent->branch_id);
+
+        $this->assertDatabaseHas('enrollments', [
+            'student_id' => $importedStudent->id,
+            'class_id' => $class1->id,
+            'status' => 'active',
+        ]);
+
+        $this->assertDatabaseHas('enrollments', [
+            'student_id' => $importedStudent->id,
+            'class_id' => $class2->id,
+            'status' => 'active',
+        ]);
     }
 }

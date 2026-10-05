@@ -1,38 +1,28 @@
-<x-admin-layout :tenant="$tenant" title="Honor Tutor">
-    <x-slot:breadcrumbSub>Honor Tutor</x-slot:breadcrumbSub>
+<x-admin-layout :tenant="$tenant" title="Rekap Honor Tutor">
+    <x-slot:breadcrumbSub>Rekap Honor Tutor</x-slot:breadcrumbSub>
 
-    <div class="space-y-6 max-w-7xl mx-auto" x-data="{ activeTab: 'calculations' }">
+    <div class="space-y-6 max-w-7xl mx-auto">
 
-        <!-- Page Header & Action Bar -->
+        <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200/70">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Honor Tutor & Kompensasi</h1>
+                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Rekap Honor Tutor</h1>
                 <p class="text-xs text-gray-500 mt-1">
-                    Pengawasan rekapitulasi honor pengajar berbasis sesi aktual pada cabang yang menjadi akses Anda.
+                    Pemeriksaan data operasional dan rekapitulasi sesi mengajar yang menjadi dasar perhitungan honor tutor di cabang Anda.
                 </p>
             </div>
         </div>
 
         <!-- Summary Metric Stats -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <x-cressco.project-card
-                title="Honor Terbayar"
-                icon="check"
-                iconColor="text-emerald-500"
-                value="Rp {{ number_format($totalPaidAmount, 0, ',', '.') }}"
-                trend="Lunas"
-                trendType="positive"
-                subtitle="Honor tutor yang telah dicairkan"
-            />
-
-            <x-cressco.project-card
-                title="Menunggu Pembayaran"
-                icon="credit-card"
-                iconColor="text-amber-500"
-                value="Rp {{ number_format($pendingFinalAmount, 0, ',', '.') }}"
-                trend="Pending"
-                trendType="warning"
-                subtitle="Honor siap transfer / cair"
+                title="Tutor Aktif Mengajar"
+                icon="people"
+                iconColor="text-gray-500"
+                value="{{ $totalActiveTutors }}"
+                trend="Tutor"
+                trendType="neutral"
+                subtitle="Tutor dengan rekap mengajar"
             />
 
             <x-cressco.project-card
@@ -46,212 +36,161 @@
             />
 
             <x-cressco.project-card
-                title="Skema Honor Aktif"
-                icon="settings"
-                iconColor="text-terracotta-500"
-                value="{{ $activeSchemesCount }}"
-                trend="Skema"
-                trendType="terracotta"
-                subtitle="Konfigurasi tarif aktif bimbel"
+                title="Estimasi Total Honor"
+                icon="billing"
+                iconColor="text-emerald-500"
+                value="Rp {{ number_format($totalEstimatedHonor, 0, ',', '.') }}"
+                trend="Terhitung"
+                trendType="positive"
+                subtitle="Honor terhitung berbasis sesi aktual"
             />
         </div>
 
-        <!-- Navigation Tabs -->
-        <div class="flex items-center gap-2 border-b border-gray-200/80 pb-px">
-            <button type="button"
-                    @click="activeTab = 'calculations'"
-                    :class="activeTab === 'calculations' ? 'border-terracotta-600 text-terracotta-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 font-medium'"
-                    class="px-4 py-2.5 text-xs border-b-2 transition flex items-center gap-2 cursor-pointer">
-                <x-cressco.icon-helper name="billing" class="w-4 h-4" />
-                <span>Rekapitulasi & Pembayaran Honor ({{ $calculations->count() }})</span>
-            </button>
-            <button type="button"
-                    @click="activeTab = 'schemes'"
-                    :class="activeTab === 'schemes' ? 'border-terracotta-600 text-terracotta-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 font-medium'"
-                    class="px-4 py-2.5 text-xs border-b-2 transition flex items-center gap-2 cursor-pointer">
-                <x-cressco.icon-helper name="settings" class="w-4 h-4" />
-                <span>Daftar Skema Kompensasi ({{ $schemes->count() }})</span>
-            </button>
-        </div>
-
-        <!-- TAB 1: REKAPITULASI HONOR -->
-        <div x-show="activeTab === 'calculations'" class="space-y-4">
-            
-            <!-- Filter Bar -->
-            <div class="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-xs">
-                <form method="GET" action="{{ route('admin.honors.index') }}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
+        <!-- Filter Bar -->
+        <div class="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-xs">
+            <form method="GET" action="{{ route('admin.honors.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+                <!-- Search Input -->
+                <div class="lg:col-span-5">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <x-cressco.icon-helper name="search" class="w-4 h-4" />
+                        </div>
                         <input
                             type="text"
                             name="search"
                             placeholder="Cari nama tutor atau email..."
                             value="{{ $search ?? '' }}"
-                            class="w-full h-10 px-3.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500 transition"
+                            class="w-full h-10 pl-9 pr-3.5 rounded-xl border border-gray-200 bg-white text-xs text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500 transition shadow-2xs"
                         />
                     </div>
-
-                    <div>
-                        <select name="branch_id" class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500 transition">
-                            <option value="all">Semua Cabang Anda</option>
-                            @foreach ($branches as $b)
-                                <option value="{{ $b->id }}" {{ ($branchId ?? '') === $b->id ? 'selected' : '' }}>
-                                    {{ $b->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <select name="status" class="w-full h-10 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500 transition">
-                            <option value="all">Semua Status</option>
-                            <option value="draft" {{ ($status ?? '') === 'draft' ? 'selected' : '' }}>Draft</option>
-                            <option value="final" {{ ($status ?? '') === 'final' ? 'selected' : '' }}>Final (Siap Bayar)</option>
-                            <option value="paid" {{ ($status ?? '') === 'paid' ? 'selected' : '' }}>Lunas (Sudah Dibayar)</option>
-                        </select>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <button type="submit" class="w-full h-10 px-4 bg-terracotta-600 hover:bg-terracotta-700 text-white rounded-xl text-xs font-semibold transition">
-                            Filter
-                        </button>
-                        @if ($search || ($branchId && $branchId !== 'all') || ($status && $status !== 'all'))
-                            <a href="{{ route('admin.honors.index') }}" class="h-10 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold flex items-center justify-center shrink-0 transition" title="Reset Filter">
-                                <x-cressco.icon-helper name="refresh-cw" class="w-3.5 h-3.5" />
-                            </a>
-                        @endif
-                    </div>
-                </form>
-            </div>
-
-            <!-- Table Honor Calculations -->
-            <div class="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-xs">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead>
-                            <tr class="bg-gray-50/80 border-b border-gray-200/80 text-gray-500 font-semibold uppercase tracking-wider">
-                                <th class="py-3 px-4">Tutor</th>
-                                <th class="py-3 px-4">Cabang</th>
-                                <th class="py-3 px-4">Periode</th>
-                                <th class="py-3 px-4">Skema & Metode</th>
-                                <th class="py-3 px-4 text-right">Total Honor</th>
-                                <th class="py-3 px-4">Status</th>
-                                <th class="py-3 px-4 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @forelse ($calculations as $calc)
-                                <tr class="hover:bg-gray-50/70 transition-colors">
-                                    <td class="py-3 px-4">
-                                        <div class="font-bold text-gray-900">{{ $calc->tutor->name ?? '-' }}</div>
-                                        <div class="text-[11px] text-gray-400">{{ $calc->tutor->email ?? '-' }}</div>
-                                    </td>
-                                    <td class="py-3 px-4 text-gray-600">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700">
-                                            {{ $calc->branch?->name ?? 'Semua Cabang' }}
-                                        </span>
-                                    </td>
-                                    <td class="py-3 px-4 text-gray-700">
-                                        {{ $calc->period_start ? $calc->period_start->format('d/m/Y') : '' }} - {{ $calc->period_end ? $calc->period_end->format('d/m/Y') : '' }}
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <div class="font-medium text-gray-900">{{ $calc->honorScheme->name ?? '-' }}</div>
-                                        <span class="text-[10px] uppercase tracking-wider font-semibold text-gray-500">{{ str_replace('_', ' ', $calc->method) }}</span>
-                                    </td>
-                                    <td class="py-3 px-4 text-right font-bold text-gray-900">
-                                        Rp {{ number_format($calc->final_amount, 0, ',', '.') }}
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        @if ($calc->status === 'paid')
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
-                                                Lunas
-                                            </span>
-                                        @elseif ($calc->status === 'final')
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
-                                                Final (Siap Bayar)
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700">
-                                                Draft
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td class="py-3 px-4 text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <a href="{{ route('admin.honors.show', $calc) }}" class="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 transition" title="Lihat Rincian Sesi & Honor">
-                                                <x-cressco.icon-helper name="eye" class="w-4 h-4" />
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" class="py-8 text-center text-gray-400">
-                                        <div class="flex flex-col items-center justify-center">
-                                            <x-cressco.icon-helper name="billing" class="w-10 h-10 text-gray-300 mb-2" />
-                                            <p class="font-medium text-gray-500">Belum ada data perhitungan honor di cabang Anda.</p>
-                                            <p class="text-[11px] text-gray-400 mt-1">Perhitungan honor disusun berbasis sesi pengajaran aktual oleh Owner.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
                 </div>
-            </div>
 
+                <!-- Tutor Filter -->
+                <div class="lg:col-span-4">
+                    <select name="tutor_id" class="w-full h-10 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs text-gray-700 focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500 transition shadow-2xs">
+                        <option value="all">Semua Tutor</option>
+                        @foreach ($tutors as $t)
+                            <option value="{{ $t->id }}" {{ ($tutorId ?? '') === $t->id ? 'selected' : '' }}>
+                                {{ $t->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Period Filter & Action Buttons -->
+                <div class="lg:col-span-3 flex items-center gap-2">
+                    <select name="period" class="w-full h-10 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs text-gray-700 focus:ring-2 focus:ring-terracotta-500 focus:border-terracotta-500 transition shadow-2xs">
+                        <option value="">Semua Periode</option>
+                        @foreach ($periods as $p)
+                            <option value="{{ $p }}" {{ ($period ?? '') === $p ? 'selected' : '' }}>
+                                {{ \Carbon\Carbon::parse($p . '-01')->translatedFormat('F Y') }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <button type="submit" class="h-10 px-4 bg-terracotta-600 hover:bg-terracotta-700 text-white rounded-xl text-xs font-semibold shrink-0 transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                        <x-cressco.icon-helper name="filter" class="w-3.5 h-3.5" />
+                        <span>Filter</span>
+                    </button>
+
+                    @if ($search || ($tutorId && $tutorId !== 'all') || $period)
+                        <a href="{{ route('admin.honors.index') }}" class="h-10 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold flex items-center justify-center shrink-0 transition" title="Reset Filter">
+                            <x-cressco.icon-helper name="refresh" class="w-3.5 h-3.5" />
+                        </a>
+                    @endif
+                </div>
+            </form>
         </div>
 
-        <!-- TAB 2: DAFTAR SKEMA HONOR (REFERENCE VIEW) -->
-        <div x-show="activeTab === 'schemes'" class="space-y-4" style="display: none;">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                @forelse ($schemes as $scheme)
-                    <div class="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs space-y-3 flex flex-col justify-between">
-                        <div class="space-y-2">
-                            <div class="flex items-start justify-between gap-2">
-                                <h3 class="font-bold text-gray-900 text-sm">{{ $scheme->name }}</h3>
-                                @if ($scheme->id === $defaultSchemeId)
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-terracotta-100 text-terracotta-800">
-                                        Default
+        <!-- Table Honor Recap -->
+        <div class="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-gray-50/80 border-b border-gray-200/80 text-gray-500 font-bold text-[11px] uppercase tracking-wider">
+                            <th class="py-3.5 px-4 sm:px-6">Tutor</th>
+                            <th class="py-3.5 px-4 whitespace-nowrap">Periode</th>
+                            <th class="py-3.5 px-4 text-center whitespace-nowrap">Jumlah Sesi Selesai</th>
+                            <th class="py-3.5 px-4 text-right whitespace-nowrap">Tarif Honor</th>
+                            <th class="py-3.5 px-4 text-right whitespace-nowrap">Total Honor</th>
+                            <th class="py-3.5 px-4 text-center whitespace-nowrap">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse ($calculations as $calc)
+                            @php
+                                $rate = $calc->honorScheme?->rate ?? ($calc->total_sessions > 0 ? (float) ($calc->base_amount / $calc->total_sessions) : 0);
+                            @endphp
+                            <tr class="hover:bg-gray-50/60 transition-colors">
+                                <!-- Tutor Name & Avatar -->
+                                <td class="py-3.5 px-4 sm:px-6">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center font-bold text-xs shrink-0 border border-gray-200/60">
+                                            {{ strtoupper(substr($calc->tutor?->name ?? 'T', 0, 2)) }}
+                                        </div>
+                                        <div>
+                                            <a href="{{ route('admin.honors.show', $calc) }}" class="font-bold text-gray-900 hover:text-terracotta-600 transition block leading-snug">
+                                                {{ $calc->tutor?->name ?? '-' }}
+                                            </a>
+                                            <span class="text-[11px] text-gray-400 block mt-0.5">{{ $calc->tutor?->email ?? '-' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Periode -->
+                                <td class="py-3.5 px-4 whitespace-nowrap text-gray-700 font-medium">
+                                    {{ $calc->period_start ? $calc->period_start->translatedFormat('d M Y') : '' }} - {{ $calc->period_end ? $calc->period_end->translatedFormat('d M Y') : '' }}
+                                </td>
+
+                                <!-- Jumlah Sesi Selesai -->
+                                <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+                                        {{ $calc->total_sessions ?? 0 }} Sesi
                                     </span>
-                                @endif
-                            </div>
+                                </td>
 
-                            <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs space-y-1">
-                                <div class="flex justify-between text-gray-600">
-                                    <span>Metode:</span>
-                                    <span class="font-bold text-gray-900 uppercase text-[11px]">{{ str_replace('_', ' ', $scheme->method) }}</span>
-                                </div>
-                                @if ($scheme->rate)
-                                    <div class="flex justify-between text-gray-600">
-                                        <span>Tarif per Sesi:</span>
-                                        <span class="font-bold text-emerald-700">Rp {{ number_format($scheme->rate, 0, ',', '.') }}</span>
-                                    </div>
-                                @endif
-                                @if ($scheme->fixed_amount)
-                                    <div class="flex justify-between text-gray-600">
-                                        <span>Nominal Tetap:</span>
-                                        <span class="font-bold text-emerald-700">Rp {{ number_format($scheme->fixed_amount, 0, ',', '.') }}</span>
-                                    </div>
-                                @endif
-                                @if ($scheme->percentage)
-                                    <div class="flex justify-between text-gray-600">
-                                        <span>Persentase Bagi Hasil:</span>
-                                        <span class="font-bold text-blue-700">{{ $scheme->percentage }}%</span>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
+                                <!-- Tarif Honor -->
+                                <td class="py-3.5 px-4 text-right whitespace-nowrap text-gray-600 font-medium">
+                                    @if ($rate > 0)
+                                        Rp {{ number_format($rate, 0, ',', '.') }} <span class="text-[10px] text-gray-400">/ sesi</span>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
 
-                        <div class="pt-2 border-t border-gray-100 text-[11px] text-gray-400 flex items-center justify-between">
-                            <span>Status: <strong class="{{ $scheme->status === 'active' ? 'text-emerald-600' : 'text-gray-400' }}">{{ ucfirst($scheme->status) }}</strong></span>
-                            <span>Mulai: {{ $scheme->effective_from ? $scheme->effective_from->format('d/m/Y') : '-' }}</span>
-                        </div>
-                    </div>
-                @empty
-                    <div class="col-span-full py-8 text-center text-gray-400 bg-white rounded-2xl border border-gray-200/80">
-                        <p class="font-medium text-gray-500">Belum ada skema kompensasi yang dikonfigurasi oleh Owner.</p>
-                    </div>
-                @endforelse
+                                <!-- Total Honor -->
+                                <td class="py-3.5 px-4 text-right whitespace-nowrap font-bold text-gray-900 text-sm">
+                                    Rp {{ number_format($calc->final_amount, 0, ',', '.') }}
+                                </td>
+
+                                <!-- Aksi -->
+                                <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                    <div class="flex items-center justify-center">
+                                        <a href="{{ route('admin.honors.show', $calc) }}"
+                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200/90 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 text-xs font-semibold transition shadow-2xs"
+                                           title="Lihat Rincian Sesi Mengajar">
+                                            <x-cressco.icon-helper name="document" class="w-3.5 h-3.5 text-gray-400" />
+                                            <span>Detail Sesi</span>
+                                            <x-cressco.icon-helper name="chevron-right" class="w-3 h-3 text-gray-400" />
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="py-12 text-center text-gray-400">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <div class="w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mb-3">
+                                            <x-cressco.icon-helper name="billing" class="w-6 h-6 text-gray-400" />
+                                        </div>
+                                        <p class="font-semibold text-gray-700 text-sm">Belum ada data rekap honor tutor pada filter ini.</p>
+                                        <p class="text-xs text-gray-400 mt-1">Data rekap honor terhitung otomatis berdasarkan sesi mengajar yang telah diselesaikan.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
 

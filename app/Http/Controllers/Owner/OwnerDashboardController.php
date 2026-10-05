@@ -4,18 +4,12 @@ namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
-use App\Models\Classes;
-use App\Models\Enrollment;
 use App\Models\HonorCalculation;
 use App\Models\Payment;
 use App\Models\Student;
-use App\Models\StudentAttendance;
-use App\Models\TeachingSession;
-use App\Models\User;
 use App\Services\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class OwnerDashboardController extends Controller
@@ -94,7 +88,7 @@ class OwnerDashboardController extends Controller
             ->when($selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
             ->count();
 
-        // Revenue (Paid payments)
+        // Revenue (Paid payments in period)
         $revenueQuery = Payment::where('tenant_id', $tenant->id)
             ->where('status', 'lunas')
             ->where(function ($q) use ($startDate, $endDate) {
@@ -153,7 +147,7 @@ class OwnerDashboardController extends Controller
         $chartRangeStart = Carbon::create($chartYear, 1, 1)->startOfMonth();
         $chartRangeEnd = Carbon::create($chartYear, $maxMonth, 1)->endOfMonth();
 
-        // One query for the whole year (instead of one per month) bucketed in memory.
+        // Aggregated payments in memory
         $monthlyRevenue = array_fill(1, $maxMonth, 0.0);
         $chartRevenueQuery = Payment::where('tenant_id', $tenant->id)
             ->where('status', 'lunas')
@@ -216,7 +210,7 @@ class OwnerDashboardController extends Controller
             ];
         }
 
-        // 5. Payment Overview
+        // 5. Payment Overview (Status counts & totals)
         $paymentStatusQuery = Payment::where('tenant_id', $tenant->id);
         $applyBranch($paymentStatusQuery);
         $paymentStatusTotals = $paymentStatusQuery
@@ -234,93 +228,6 @@ class OwnerDashboardController extends Controller
         $pendingAmount = $statusAmount(['belum_bayar', 'menunggu_verifikasi']);
         $overdueCount = $statusCount(['terlambat']);
         $overdueAmount = $statusAmount(['terlambat']);
-
-        $totalPaymentTarget = $paidAmount + $pendingAmount + $overdueAmount;
-        $paymentCollectionRate = $totalPaymentTarget > 0 ? round(($paidAmount / $totalPaymentTarget) * 100) : 100;
-
-        // 6. Attendance Overview
-        $attendanceTotalsQuery = StudentAttendance::where('tenant_id', $tenant->id);
-        if ($selectedBranchId) {
-            $attendanceTotalsQuery->where('branch_id', $selectedBranchId);
-        }
-        $attendanceTotals = $attendanceTotalsQuery
-            ->selectRaw("count(*) as total_records, coalesce(sum(case when status in ('hadir', 'present') then 1 else 0 end), 0) as present_records")
-            ->first();
-        $totalAttendanceRecords = (int) ($attendanceTotals->total_records ?? 0);
-        $presentCount = (int) ($attendanceTotals->present_records ?? 0);
-
-        $attendanceRate = $totalAttendanceRecords > 0 ? round(($presentCount / $totalAttendanceRecords) * 100) : 0;
-
-        // Count students with low attendance (< 70%) directly in SQL
-        $lowAttendanceSubquery = StudentAttendance::where('tenant_id', $tenant->id)
-            ->when($selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
-            ->selectRaw("student_id, count(*) as total, sum(case when status in ('hadir', 'present') then 1 else 0 end) as present_count")
-            ->groupBy('student_id')
-            ->havingRaw('(sum(case when status in (\'hadir\', \'present\') then 1 else 0 end) * 1.0 / count(*)) < 0.70');
-        $lowAttendanceCount = DB::query()->fromSub($lowAttendanceSubquery->toBase(), 'low_attendance')->count();
-
-        // 7. Student & Operational Overview
-        $classesQuery = Classes::where('tenant_id', $tenant->id)->where('status', 'active');
-        $applyBranch($classesQuery);
-        $activeClassesCount = $classesQuery->count();
-
-        $todaySessionsQuery = TeachingSession::where('tenant_id', $tenant->id)
-            ->whereDate('session_date', $now->toDateString());
-        $applyBranch($todaySessionsQuery);
-        $todaySessionsCount = $todaySessionsQuery->count();
-
-        $tutorsQuery = User::where('tenant_id', $tenant->id)
-            ->where('role', 'tutor')
-            ->where('status', 'active');
-        if ($selectedBranchId) {
-            $tutorsQuery->where(function ($q) use ($selectedBranchId) {
-                $q->whereHas('branches', fn ($bq) => $bq->where('branches.id', $selectedBranchId))
-                    ->orWhereHas('tutorAssignments', fn ($aq) => $aq->where('branch_id', $selectedBranchId));
-            });
-        }
-        $activeTutorsCount = $tutorsQuery->count();
-
-        // 8. Recent Activities
-        $recentPayments = Payment::where('tenant_id', $tenant->id)
-            ->with(['student', 'branch'])
-            ->latest()
-            ->limit(4)
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'time' => $p->created_at->diffForHumans(),
-                    'timestamp_label' => $p->created_at->translatedFormat('d M, H:i'),
-                    'user' => $p->student?->name ?? 'Siswa',
-                    'action' => $p->status === 'lunas' ? 'Pembayaran terverifikasi' : 'Tagihan baru dibuat',
-                    'detail' => 'Rp '.number_format($p->amount, 0, ',', '.'),
-                    'type' => $p->status === 'lunas' ? 'payment_success' : 'payment_pending',
-                    'badge' => $p->branch?->name ?? 'Pusat',
-                    'created_at' => $p->created_at,
-                ];
-            });
-
-        $recentEnrollments = Enrollment::where('tenant_id', $tenant->id)
-            ->with(['student', 'class', 'branch'])
-            ->latest()
-            ->limit(3)
-            ->get()
-            ->map(function ($e) {
-                return [
-                    'time' => $e->created_at->diffForHumans(),
-                    'timestamp_label' => $e->created_at->translatedFormat('d M, H:i'),
-                    'user' => $e->student?->name ?? 'Siswa Baru',
-                    'action' => 'Terdaftar di kelas '.($e->class?->name ?? 'Bimbel'),
-                    'detail' => $e->branch?->name ?? 'Cabang',
-                    'type' => 'enrollment',
-                    'badge' => 'Enrollment',
-                    'created_at' => $e->created_at,
-                ];
-            });
-
-        $recentActivities = $recentPayments->concat($recentEnrollments)
-            ->sortByDesc('created_at')
-            ->values()
-            ->take(5);
 
         return view('owner.dashboard', compact(
             'tenant',
@@ -342,14 +249,7 @@ class OwnerDashboardController extends Controller
             'pendingCount',
             'pendingAmount',
             'overdueCount',
-            'overdueAmount',
-            'paymentCollectionRate',
-            'attendanceRate',
-            'lowAttendanceCount',
-            'activeClassesCount',
-            'todaySessionsCount',
-            'activeTutorsCount',
-            'recentActivities'
+            'overdueAmount'
         ));
     }
 }

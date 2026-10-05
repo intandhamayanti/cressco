@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignTutorRequest;
 use App\Http\Requests\Admin\StoreClassRequest;
 use App\Http\Requests\Admin\StoreScheduleRequest;
+use App\Http\Requests\Admin\StoreStudentRequest;
 use App\Http\Requests\Admin\UpdateClassRequest;
 use App\Http\Requests\Admin\UpdateScheduleRequest;
 use App\Models\Classes;
 use App\Models\Enrollment;
 use App\Models\Schedule;
+use App\Models\Student;
 use App\Models\TutorAssignment;
 use App\Models\User;
 use App\Services\TeachingSessionGenerationService;
@@ -184,6 +186,12 @@ class AdminClassController extends Controller
             'enrollments' => function ($q) use ($tenant) {
                 $q->where('tenant_id', $tenant->id)->with('student')->latest();
             },
+            'teachingSessions' => function ($q) use ($tenant) {
+                $q->where('tenant_id', $tenant->id)
+                    ->with(['scheduledTutor', 'actualTutor', 'studentAttendances', 'tutorReplacements.replacementTutor', 'tutorReplacements.changedBy'])
+                    ->orderByDesc('session_date')
+                    ->orderBy('start_time');
+            },
         ]);
 
         $accessibleBranches = $user->accessibleBranches();
@@ -193,7 +201,16 @@ class AdminClassController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.classes.show', compact('tenant', 'class', 'accessibleBranches', 'tutors'));
+        // Active students in class branch who are not actively enrolled in this class
+        $activeEnrolledStudentIds = $class->enrollments->where('status', 'active')->pluck('student_id')->all();
+        $availableStudents = Student::where('tenant_id', $tenant->id)
+            ->where('branch_id', $class->branch_id)
+            ->where('status', 'active')
+            ->whereNotIn('id', $activeEnrolledStudentIds)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.classes.show', compact('tenant', 'class', 'accessibleBranches', 'tutors', 'availableStudents'));
     }
 
     public function update(UpdateClassRequest $request, Classes $class): RedirectResponse
@@ -400,5 +417,142 @@ class AdminClassController extends Controller
         $schedule->delete();
 
         return back()->with('success', 'Jadwal rutin berhasil dihapus.');
+    }
+
+    public function enrollStudents(Request $request, Classes $class): RedirectResponse
+    {
+        $user = $request->user();
+        $tenant = TenantContext::getTenant() ?? $user->tenant;
+
+        if (! $tenant || $class->tenant_id !== $tenant->id || ! $user->hasBranchAccess($class->branch_id)) {
+            abort(404, 'Kelas tidak ditemukan atau di luar cabang akses Anda.');
+        }
+
+        Gate::authorize('update', $class);
+
+        $request->validate([
+            'student_ids' => ['required', 'array', 'min:1'],
+            'student_ids.*' => ['required', 'uuid'],
+            'started_at' => ['nullable', 'date'],
+        ]);
+
+        $studentIds = array_unique($request->input('student_ids'));
+        $startedAt = $request->input('started_at', now()->toDateString());
+        $count = 0;
+
+        foreach ($studentIds as $studentId) {
+            $student = Student::where('tenant_id', $tenant->id)
+                ->where('branch_id', $class->branch_id)
+                ->find($studentId);
+
+            if ($student) {
+                $enrollment = Enrollment::where('tenant_id', $tenant->id)
+                    ->where('class_id', $class->id)
+                    ->where('student_id', $student->id)
+                    ->first();
+
+                if ($enrollment) {
+                    $enrollment->update([
+                        'status' => 'active',
+                        'started_at' => $startedAt,
+                    ]);
+                } else {
+                    Enrollment::create([
+                        'id' => (string) Str::uuid(),
+                        'tenant_id' => $tenant->id,
+                        'branch_id' => $class->branch_id,
+                        'student_id' => $student->id,
+                        'class_id' => $class->id,
+                        'started_at' => $startedAt,
+                        'status' => 'active',
+                    ]);
+                }
+                $count++;
+            }
+        }
+
+        return back()->with('success', "Berhasil menambahkan {$count} siswa ke kelas '{$class->name}'.");
+    }
+
+    public function storeStudent(StoreStudentRequest $request, Classes $class): RedirectResponse
+    {
+        $user = $request->user();
+        $tenant = TenantContext::getTenant() ?? $user->tenant;
+
+        if (! $tenant || $class->tenant_id !== $tenant->id || ! $user->hasBranchAccess($class->branch_id)) {
+            abort(404, 'Kelas tidak ditemukan atau di luar cabang akses Anda.');
+        }
+
+        Gate::authorize('create', [Student::class, $class->branch_id]);
+
+        $validated = $request->validated();
+
+        $newStudent = Student::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'branch_id' => $class->branch_id,
+            'name' => $validated['name'],
+            'date_of_birth' => $validated['date_of_birth'] ?? null,
+            'gender' => $validated['gender'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'parent_name' => $validated['parent_name'] ?? null,
+            'parent_phone' => $validated['parent_phone'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'joined_at' => $validated['joined_at'] ?? now()->toDateString(),
+            'status' => $validated['status'] ?? 'active',
+        ]);
+
+        // Auto-enroll to this class
+        Enrollment::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'branch_id' => $class->branch_id,
+            'student_id' => $newStudent->id,
+            'class_id' => $class->id,
+            'started_at' => $newStudent->joined_at ?? now()->toDateString(),
+            'status' => 'active',
+        ]);
+
+        return back()->with('success', "Siswa '{$newStudent->name}' berhasil dibuat dan didaftarkan ke kelas '{$class->name}'.");
+    }
+
+    public function toggleEnrollment(Request $request, Classes $class, Enrollment $enrollment): RedirectResponse
+    {
+        $user = $request->user();
+        $tenant = TenantContext::getTenant() ?? $user->tenant;
+
+        if (! $tenant || $class->tenant_id !== $tenant->id || ! $user->hasBranchAccess($class->branch_id) || $enrollment->tenant_id !== $tenant->id || $enrollment->class_id !== $class->id) {
+            abort(404, 'Data enrollment tidak ditemukan.');
+        }
+
+        Gate::authorize('update', $class);
+
+        $newStatus = $enrollment->status === 'active' ? 'withdrawn' : 'active';
+        $enrollment->update([
+            'status' => $newStatus,
+            'ended_at' => $newStatus === 'withdrawn' ? now()->toDateString() : null,
+        ]);
+
+        $label = $newStatus === 'active' ? 'diaktifkan kembali' : 'dinonaktifkan';
+
+        return back()->with('success', "Status enrollment siswa '{$enrollment->student?->name}' berhasil {$label}.");
+    }
+
+    public function destroyEnrollment(Request $request, Classes $class, Enrollment $enrollment): RedirectResponse
+    {
+        $user = $request->user();
+        $tenant = TenantContext::getTenant() ?? $user->tenant;
+
+        if (! $tenant || $class->tenant_id !== $tenant->id || ! $user->hasBranchAccess($class->branch_id) || $enrollment->tenant_id !== $tenant->id || $enrollment->class_id !== $class->id) {
+            abort(404, 'Data enrollment tidak ditemukan.');
+        }
+
+        Gate::authorize('update', $class);
+
+        $studentName = $enrollment->student?->name ?? 'Siswa';
+        $enrollment->delete();
+
+        return back()->with('success', "Siswa '{$studentName}' berhasil dikeluarkan dari kelas.");
     }
 }

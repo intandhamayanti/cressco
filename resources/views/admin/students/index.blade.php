@@ -6,16 +6,21 @@
              createModalOpen: false,
              editModalOpen: false,
              toggleModalOpen: false,
+             importModalOpen: false,
+             selectedClasses: [''],
              editStudent: { id: '', branch_id: '', name: '', date_of_birth: '', gender: 'Laki-laki', phone: '', address: '', parent_name: '', parent_phone: '', notes: '', joined_at: '', status: 'active' },
              toggleStudent: { id: '', name: '', status: '' },
              openCreate() {
                  this.toggleModalOpen = false;
                  this.editModalOpen = false;
+                 this.importModalOpen = false;
+                 this.selectedClasses = [''];
                  this.createModalOpen = true;
              },
              openEdit(student) {
                  this.toggleModalOpen = false;
                  this.createModalOpen = false;
+                 this.importModalOpen = false;
                  this.editStudent = {
                      id: student.id,
                      branch_id: student.branch_id,
@@ -35,6 +40,7 @@
              openToggle(student) {
                  this.createModalOpen = false;
                  this.editModalOpen = false;
+                 this.importModalOpen = false;
                  this.toggleStudent = {
                      id: student.id,
                      name: student.name,
@@ -46,6 +52,7 @@
                  this.createModalOpen = false;
                  this.editModalOpen = false;
                  this.toggleModalOpen = false;
+                 this.importModalOpen = false;
              }
          }">
 
@@ -54,11 +61,15 @@
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Management Siswa</h1>
                 <p class="text-xs text-gray-500 mt-1">
-                    Kelola pendaftaran siswa, profil, dan penempatan cabang di {{ $tenant->name ?? 'Prime Academy' }}.
+                    Kelola pendaftaran siswa, profil, enrollment kelas, dan penempatan cabang di {{ $tenant->name ?? 'Prime Academy' }}.
                 </p>
             </div>
 
             <div class="flex items-center gap-3">
+                <x-cressco.button variant="secondary" size="md" leadingIcon="upload" @click="importModalOpen = true">
+                    Import Siswa
+                </x-cressco.button>
+
                 <x-cressco.button variant="primary" size="md" leadingIcon="plus" @click="openCreate()">
                     Daftarkan Siswa Baru
                 </x-cressco.button>
@@ -252,7 +263,7 @@
                                         <a href="{{ route('admin.students.show', $stu) }}"
                                            title="Detail Siswa"
                                            class="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition">
-                                            <x-cressco.icon-helper name="view" class="w-4 h-4" />
+                                            <x-cressco.icon-helper name="chevron-right" class="w-3.5 h-3.5 text-gray-400" />
                                         </a>
 
                                         <button type="button"
@@ -266,7 +277,7 @@
                                                 @click="openToggle({{ json_encode($stu) }})"
                                                 title="{{ $stu->status === 'active' ? 'Nonaktifkan Siswa' : 'Aktifkan Siswa' }}"
                                                 class="p-1.5 {{ $stu->status === 'active' ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50' : 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50' }} rounded-lg transition cursor-pointer">
-                                            <x-cressco.icon-helper name="{{ $stu->status === 'active' ? 'clock' : 'check-circle' }}" class="w-4 h-4" />
+                                            <x-cressco.icon-helper name="{{ $stu->status === 'active' ? 'close' : 'check' }}" class="w-4 h-4" />
                                         </button>
                                     </div>
                                 </td>
@@ -429,6 +440,38 @@
                                 <textarea name="notes" rows="2" placeholder="Catatan minat bakat, riwayat belajar, dll..."
                                           class="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500"></textarea>
                             </div>
+
+                            <!-- Kelas yang Diikuti (Multi-Class Enrollment - Optional) -->
+                            <div class="sm:col-span-2 pt-3 border-t border-gray-100">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-800">Kelas yang Diikuti (Opsional)</label>
+                                        <p class="text-[11px] text-gray-500">Pilih satu atau beberapa kelas yang akan langsung diikuti oleh siswa baru.</p>
+                                    </div>
+                                    <button type="button" @click="selectedClasses.push('')" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-terracotta-600 hover:text-terracotta-700 bg-terracotta-50 hover:bg-terracotta-100 rounded-lg transition cursor-pointer">
+                                        <x-cressco.icon-helper name="plus" class="w-3.5 h-3.5" />
+                                        <span>Tambah Kelas</span>
+                                    </button>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <template x-for="(cls, idx) in selectedClasses" :key="idx">
+                                        <div class="flex items-center gap-2">
+                                            <select :name="'class_ids[]'" class="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500">
+                                                <option value="">-- Pilih Kelas --</option>
+                                                @foreach ($classes as $c)
+                                                    <option value="{{ $c->id }}">
+                                                        {{ $c->name }} ({{ $c->branch?->name }}) - {{ $c->subject ?: 'Umum' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <button type="button" x-show="selectedClasses.length > 1" @click="selectedClasses.splice(idx, 1)" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition cursor-pointer" title="Hapus baris kelas">
+                                                <x-cressco.icon-helper name="trash-2" class="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
@@ -438,6 +481,106 @@
                             </button>
                             <x-cressco.button type="submit" variant="primary" size="md">
                                 Daftarkan Siswa
+                            </x-cressco.button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Student Modal (On-Page Wizard Flow) -->
+        <div x-show="importModalOpen"
+             x-cloak
+             class="fixed inset-0 z-50 overflow-y-auto"
+             role="dialog"
+             aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div x-show="importModalOpen"
+                     x-transition:enter="ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity"
+                     @click="importModalOpen = false"></div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div x-show="importModalOpen"
+                     x-transition:enter="ease-out duration-300"
+                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave="ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     class="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle bg-white rounded-2xl shadow-2xl transform transition-all space-y-5">
+
+                    <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-terracotta-50 text-terracotta-600 flex items-center justify-center font-bold">
+                                <x-cressco.icon-helper name="upload" class="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-gray-900">Import Data Siswa</h3>
+                                <p class="text-xs text-gray-500">Unggah data siswa dalam jumlah banyak sekaligus via spreadsheet CSV.</p>
+                            </div>
+                        </div>
+                        <button type="button" @click="importModalOpen = false" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg">
+                            <x-cressco.icon-helper name="close" class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <!-- Flow Steps -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div class="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                            <div class="font-bold text-gray-900">1. Unduh Template</div>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Format file CSV dengan kolom cabang dan multi-kelas.</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                            <div class="font-bold text-gray-900">2. Isi & Simpan</div>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Isi data siswa di Excel/Sheets, pisahkan beberapa kelas dengan tanda titik koma (;).</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                            <div class="font-bold text-gray-900">3. Upload & Preview</div>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Sistem memvalidasi data sebelum disimpan ke database.</p>
+                        </div>
+                    </div>
+
+                    <!-- Download Template Box -->
+                    <div class="flex items-center justify-between p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/70">
+                        <div class="text-xs text-amber-900">
+                            <span class="font-bold block">Template CSV Standar Cressco</span>
+                            <span class="text-[11px] text-amber-700">Mendukung pendaftaran multi-kelas (misal: "10 SMA - Matematika; 10 SMA - Fisika")</span>
+                        </div>
+                        <a href="{{ route('admin.students.import.template') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition shrink-0">
+                            <x-cressco.icon-helper name="document" class="w-4 h-4" />
+                            <span>Download Template</span>
+                        </a>
+                    </div>
+
+                    <!-- Upload Form -->
+                    <form method="POST" action="{{ route('admin.students.import.preview') }}" enctype="multipart/form-data" class="space-y-4">
+                        @csrf
+
+                        <div class="border-2 border-dashed border-gray-200 hover:border-terracotta-400 rounded-2xl p-6 text-center transition cursor-pointer bg-gray-50/50">
+                            <input type="file" name="file" id="adminStudentFileInput" accept=".csv,text/csv" required class="hidden" onchange="document.getElementById('adminStudentFileName').textContent = this.files[0]?.name || '';" />
+                            <label for="adminStudentFileInput" class="cursor-pointer block space-y-2">
+                                <div class="w-10 h-10 rounded-xl bg-terracotta-50 text-terracotta-600 flex items-center justify-center mx-auto">
+                                    <x-cressco.icon-helper name="document" class="w-5 h-5" />
+                                </div>
+                                <div class="text-xs font-bold text-gray-900">Pilih file CSV (.csv) dari komputer Anda</div>
+                                <p class="text-[11px] text-gray-400">Ukuran maksimal file 5 MB</p>
+                                <div id="adminStudentFileName" class="text-xs font-bold text-terracotta-600 pt-1"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                            <button type="button" @click="importModalOpen = false" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 transition cursor-pointer">
+                                Batal
+                            </button>
+                            <x-cressco.button type="submit" variant="primary" size="md">
+                                Lanjut ke Preview & Validasi
                             </x-cressco.button>
                         </div>
                     </form>

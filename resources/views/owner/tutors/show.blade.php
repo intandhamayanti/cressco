@@ -92,13 +92,13 @@
             />
 
             <x-cressco.project-card
-                title="Skema Kompensasi"
+                title="Pengaturan Honor"
                 icon="billing"
                 iconColor="text-amber-500"
-                value="{{ $activeScheme ? (strlen($activeScheme->name) > 16 ? substr($activeScheme->name, 0, 14).'...' : $activeScheme->name) : 'Belum diatur' }}"
-                trend="{{ $tutorOverrideAssignment ? 'Override' : 'Default' }}"
+                value="{{ $tutorOverrideAssignment ? 'Pengaturan Lain' : 'Default Bimbel' }}"
+                trend="{{ $activeScheme ? ucfirst(str_replace('_', ' ', $activeScheme->method)) : 'Standar' }}"
                 :trendType="$tutorOverrideAssignment ? 'warning' : 'neutral'"
-                subtitle="{{ $activeScheme ? ucfirst(str_replace('_', ' ', $activeScheme->method)) : 'Standar' }}"
+                subtitle="Acuan perhitungan honor tutor"
             />
 
             <x-cressco.project-card
@@ -112,7 +112,7 @@
             />
         </div>
 
-        <!-- 2. ROW 1: PROFIL PENGAJAR (KIRI) vs SKEMA HONOR (KANAN) - BALANCED EQUAL-HEIGHT GRID -->
+        <!-- 2. ROW 1: PROFIL PENGAJAR (KIRI) vs PENGATURAN HONOR (KANAN) - BALANCED EQUAL-HEIGHT GRID -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             
             <!-- Card Kiri: Profil & Kontak Pengajar -->
@@ -160,21 +160,21 @@
                 </div>
             </div>
 
-            <!-- Card Kanan: Skema Kompensasi & Honor -->
+            <!-- Card Kanan: Pengaturan Honor -->
             <div class="bg-white rounded-3xl border border-gray-200/80 p-6 shadow-xs flex flex-col justify-between space-y-6 h-full">
                 <div class="space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                         <div>
-                            <h2 class="text-base font-bold text-gray-900">Skema Honor Aktif</h2>
-                            <p class="text-xs text-gray-500 mt-0.5">Basis kompensasi dan perhitungan gaji tutor</p>
+                            <h2 class="text-base font-bold text-gray-900">Pengaturan Honor</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Acuan dan metode perhitungan honor tutor</p>
                         </div>
                         @if ($tutorOverrideAssignment)
                             <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                Override Khusus
+                                Pengaturan Lain
                             </span>
                         @else
                             <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">
-                                Default Tenant
+                                Default Bimbel
                             </span>
                         @endif
                     </div>
@@ -185,7 +185,7 @@
                             <div class="p-4 rounded-2xl bg-terracotta-50/70 border border-terracotta-200/70 flex items-center justify-between">
                                 <div>
                                     <span class="text-[11px] font-semibold text-terracotta-800 uppercase tracking-wider block">
-                                        {{ $activeScheme->name }}
+                                        {{ $tutorOverrideAssignment ? 'Pengaturan Khusus Tutor' : 'Mengikuti Default Bimbel' }}
                                     </span>
                                     <div class="text-xl sm:text-2xl font-black text-terracotta-700 mt-0.5">
                                         @if ($activeScheme->method === 'per_session')
@@ -207,30 +207,42 @@
                             <!-- Parameter Rows -->
                             <div class="grid grid-cols-2 gap-3">
                                 <div class="p-3 rounded-xl bg-gray-50/80 border border-gray-100">
-                                    <span class="text-gray-400 text-[11px] block">Metode Perhitungan</span>
-                                    <strong class="text-gray-900 text-xs uppercase">{{ str_replace('_', ' ', $activeScheme->method) }}</strong>
+                                    <span class="text-gray-400 text-[11px] block">Metode Honor</span>
+                                    <strong class="text-gray-900 text-xs">
+                                        @if ($activeScheme->method === 'per_session')
+                                            Per Sesi
+                                        @elseif ($activeScheme->method === 'per_student')
+                                            Per Siswa
+                                        @elseif ($activeScheme->method === 'fixed_monthly')
+                                            Bulanan Tetap
+                                        @else
+                                            {{ ucfirst(str_replace('_', ' ', $activeScheme->method)) }}
+                                        @endif
+                                    </strong>
                                 </div>
 
                                 <div class="p-3 rounded-xl bg-gray-50/80 border border-gray-100">
                                     <span class="text-gray-400 text-[11px] block">Masa Berlaku</span>
                                     <strong class="text-gray-900 text-xs">
-                                        {{ $activeScheme->effective_from ? $activeScheme->effective_from->translatedFormat('d M Y') : 'Aktif Permanen' }}
+                                        {{ $tutorOverrideAssignment?->effective_from ? $tutorOverrideAssignment->effective_from->translatedFormat('d M Y') : ($activeScheme->effective_from ? $activeScheme->effective_from->translatedFormat('d M Y') : 'Aktif') }}
                                     </strong>
                                 </div>
                             </div>
                         </div>
                     @else
                         <div class="py-8 text-center text-gray-400">
-                            <p class="text-xs">Belum ada skema honor yang aktif untuk tutor ini.</p>
+                            <p class="text-xs">Belum ada pengaturan honor yang aktif untuk tutor ini.</p>
                         </div>
                     @endif
                 </div>
 
                 <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <span class="text-[11px] text-gray-400">Perubahan berlaku pada periode kalkulasi berjalan</span>
+                    <span class="text-[11px] text-gray-400">
+                        {{ $tutorOverrideAssignment ? 'Tutor menggunakan pengaturan tersendiri' : 'Tutor mengikuti pengaturan honor default bimbel' }}
+                    </span>
                     <button type="button" @click="honorSchemeModalOpen = true" class="inline-flex items-center gap-1.5 text-xs font-bold text-terracotta-600 hover:text-terracotta-700 transition">
                         <x-cressco.icon-helper name="billing" class="w-3.5 h-3.5" />
-                        <span>Sesuaikan Skema Honor</span>
+                        <span>Ubah Pengaturan Honor</span>
                     </button>
                 </div>
             </div>
@@ -508,16 +520,79 @@
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1">Skema Honor Khusus</label>
-                        <select name="honor_scheme_id" class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
-                            <option value="">Gunakan Skema Default Tenant ({{ $defaultScheme?->name ?? 'Reguler' }})</option>
-                            @foreach ($honorSchemes as $scheme)
-                                <option value="{{ $scheme->id }}" {{ ($tutorOverrideAssignment?->honor_scheme_id === $scheme->id) ? 'selected' : '' }}>
-                                    {{ $scheme->name }} ({{ ucfirst(str_replace('_', ' ', $scheme->method)) }})
-                                </option>
-                            @endforeach
-                        </select>
+                    <!-- Pengaturan Honor Terintegrasi di Modal Edit Profil -->
+                    <div class="pt-3 border-t border-gray-100" x-data="{
+                        editHonorMode: '{{ $tutorOverrideAssignment ? 'other' : 'default' }}',
+                        editMethod: '{{ $tutorOverrideAssignment?->honorScheme?->method ?? ($defaultScheme?->method ?? 'per_session') }}',
+                        editRate: '{{ $tutorOverrideAssignment?->honorScheme ? ($tutorOverrideAssignment->honorScheme->rate ?: $tutorOverrideAssignment->honorScheme->fixed_amount) : ($defaultScheme ? ($defaultScheme->rate ?: $defaultScheme->fixed_amount) : 75000) }}',
+                        editEffectiveFrom: '{{ $tutorOverrideAssignment?->effective_from ? $tutorOverrideAssignment->effective_from->format('Y-m-d') : now()->startOfMonth()->toDateString() }}'
+                    }">
+                        <label class="block font-bold text-gray-700 mb-2">Pengaturan Honor Tutor</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <label class="relative flex flex-col p-3.5 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="editHonorMode === 'default' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-xs">Default Bimbel</span>
+                                    <input type="radio" name="honor_mode" value="default" x-model="editHonorMode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Mengikuti honor standar bimbel 
+                                    @if ($defaultScheme)
+                                        ({{ $defaultScheme->method === 'per_session' ? 'Per Sesi Mengajar' : ($defaultScheme->method === 'per_student' ? 'Per Siswa' : ($defaultScheme->method === 'fixed_monthly' ? 'Bulanan Tetap' : ucfirst($defaultScheme->method))) }} - Rp {{ number_format($defaultScheme->rate ?: $defaultScheme->fixed_amount, 0, ',', '.') }}).
+                                    @else
+                                        yang ditentukan di Pengaturan Bimbel.
+                                    @endif
+                                </p>
+                            </label>
+
+                            <label class="relative flex flex-col p-3.5 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="editHonorMode === 'other' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-xs">Pengaturan Lain</span>
+                                    <input type="radio" name="honor_mode" value="other" x-model="editHonorMode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Tentukan tarif honor dan tanggal berlaku tersendiri untuk tutor ini.
+                                </p>
+                            </label>
+                        </div>
+
+                        <!-- Form Pengaturan Lain -->
+                        <div x-show="editHonorMode === 'other'" x-transition class="space-y-3 bg-gray-50/70 p-3.5 rounded-2xl border border-gray-100 mb-3">
+                            <div>
+                                <label class="block font-bold text-gray-700 mb-1">Metode Honor <span class="text-red-500">*</span></label>
+                                <select name="method" x-model="editMethod" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
+                                    <option value="per_session">Per Sesi Mengajar</option>
+                                    <option value="per_student" disabled class="text-gray-400 bg-gray-100">Per Siswa (Coming Soon)</option>
+                                    <option value="fixed_monthly" disabled class="text-gray-400 bg-gray-100">Bulanan Tetap (Coming Soon)</option>
+                                    <option value="revenue_share" disabled class="text-gray-400 bg-gray-100">Bagi Hasil / Revenue Share (Coming Soon)</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-bold text-gray-700 mb-1">Tarif Honor Per Sesi <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
+                                        <input type="number"
+                                               name="rate"
+                                               x-model="editRate"
+                                               min="0"
+                                               step="1000"
+                                               placeholder="75000"
+                                               class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block font-bold text-gray-700 mb-1">Mulai Berlaku <span class="text-red-500">*</span></label>
+                                    <input type="date"
+                                           name="effective_from"
+                                           x-model="editEffectiveFrom"
+                                           class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-gray-100">
@@ -619,7 +694,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- MODAL: SESUAIKAN SKEMA HONOR               -->
+        <!-- MODAL: PENGATURAN HONOR TUTOR             -->
         <!-- ========================================== -->
         <div x-show="honorSchemeModalOpen"
              x-cloak
@@ -642,11 +717,16 @@
                  x-transition:leave="ease-in duration-150"
                  x-transition:leave-start="opacity-100 scale-100"
                  x-transition:leave-end="opacity-0 scale-95"
-                 class="relative bg-white rounded-3xl shadow-xl max-w-md w-full p-6 border border-gray-100 z-10">
+                 x-data="{
+                     honorMode: '{{ $tutorOverrideAssignment ? 'other' : 'default' }}',
+                     method: '{{ $tutorOverrideAssignment?->honorScheme?->method ?? ($defaultScheme?->method ?? 'per_session') }}',
+                     rate: '{{ $tutorOverrideAssignment?->honorScheme ? ($tutorOverrideAssignment->honorScheme->method === 'fixed_monthly' ? $tutorOverrideAssignment->honorScheme->fixed_amount : ($tutorOverrideAssignment->honorScheme->method === 'revenue_share' ? $tutorOverrideAssignment->honorScheme->percentage : $tutorOverrideAssignment->honorScheme->rate)) : ($defaultScheme ? ($defaultScheme->method === 'fixed_monthly' ? $defaultScheme->fixed_amount : ($defaultScheme->method === 'revenue_share' ? $defaultScheme->percentage : $defaultScheme->rate)) : 50000) }}'
+                 }"
+                 class="relative bg-white rounded-3xl shadow-xl max-w-lg w-full p-6 border border-gray-100 z-10 max-h-[90vh] overflow-y-auto">
                 
                 <div class="flex items-center justify-between pb-3 border-b border-gray-100">
                     <div>
-                        <h3 class="text-base font-bold text-gray-900">Sesuaikan Skema Honor Tutor</h3>
+                        <h3 class="text-base font-bold text-gray-900">Pengaturan Honor Tutor</h3>
                         <p class="text-xs text-gray-500 mt-0.5">{{ $tutor->name }}</p>
                     </div>
                     <button type="button" @click="closeAll()" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition">
@@ -657,35 +737,83 @@
                 <form method="POST" action="{{ route('owner.tutors.assign-honor-scheme', $tutor) }}" class="space-y-4 mt-4 text-xs">
                     @csrf
 
+                    <!-- Pilihan Opsi Honor -->
                     <div>
-                        <label class="block font-bold text-gray-700 mb-1">Pilih Skema Honor Khusus</label>
-                        <select name="honor_scheme_id" class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
-                            <option value="">Gunakan Skema Default Tenant (Hapus Override Khusus)</option>
-                            @foreach ($honorSchemes as $scheme)
-                                <option value="{{ $scheme->id }}" {{ ($tutorOverrideAssignment?->honor_scheme_id === $scheme->id) ? 'selected' : '' }}>
-                                    {{ $scheme->name }} ({{ ucfirst(str_replace('_', ' ', $scheme->method)) }})
-                                </option>
-                            @endforeach
-                        </select>
-                        <p class="text-[11px] text-gray-400 mt-1">Pilih "Gunakan Skema Default" jika tutor ini akan mengikuti skema kompensasi standar bimbel.</p>
+                        <label class="block font-bold text-gray-700 mb-2">Pilihan Pengaturan Honor</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <!-- Card Default Bimbel -->
+                            <label class="relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="honorMode === 'default' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="font-bold text-sm">Default Bimbel</span>
+                                    <input type="radio" name="honor_mode" value="default" x-model="honorMode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Mengikuti pengaturan honor default bimbel 
+                                    @if ($defaultScheme)
+                                        ({{ $defaultScheme->method === 'per_session' ? 'Per Sesi' : ($defaultScheme->method === 'per_student' ? 'Per Siswa' : ($defaultScheme->method === 'fixed_monthly' ? 'Bulanan Tetap' : ucfirst($defaultScheme->method))) }} - Rp {{ number_format($defaultScheme->rate ?: $defaultScheme->fixed_amount, 0, ',', '.') }}).
+                                    @else
+                                        yang ditentukan pada pengaturan bimbel.
+                                    @endif
+                                </p>
+                            </label>
+
+                            <!-- Card Pengaturan Lain -->
+                            <label class="relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition"
+                                   :class="honorMode === 'other' ? 'border-terracotta-500 bg-terracotta-50/40 text-terracotta-900' : 'border-gray-200 bg-white hover:bg-gray-50/70 text-gray-700'">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="font-bold text-sm">Pengaturan Lain</span>
+                                    <input type="radio" name="honor_mode" value="other" x-model="honorMode" class="text-terracotta-600 focus:ring-terracotta-500">
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    Tentukan metode honor dan nominal yang berbeda untuk tutor ini.
+                                </p>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Fields Ketika Memilih Pengaturan Lain -->
+                    <div x-show="honorMode === 'other'" x-transition class="space-y-4 pt-3 border-t border-gray-100">
                         <div>
-                            <label class="block font-bold text-gray-700 mb-1">Tanggal Mulai Berlaku <span class="text-red-500">*</span></label>
-                            <input type="date"
-                                   name="effective_from"
-                                   required
-                                   value="{{ $tutorOverrideAssignment?->effective_from ? $tutorOverrideAssignment->effective_from->format('Y-m-d') : now()->startOfMonth()->toDateString() }}"
-                                   class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                            <label class="block font-bold text-gray-700 mb-1">Metode Honor <span class="text-red-500">*</span></label>
+                            <select name="method" x-model="method" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition">
+                                <option value="per_session">Per Sesi Mengajar</option>
+                                <option value="per_student" disabled class="text-gray-400 bg-gray-100">Per Siswa (Coming Soon)</option>
+                                <option value="fixed_monthly" disabled class="text-gray-400 bg-gray-100">Bulanan Tetap (Coming Soon)</option>
+                                <option value="revenue_share" disabled class="text-gray-400 bg-gray-100">Bagi Hasil / Revenue Share (Coming Soon)</option>
+                            </select>
                         </div>
 
                         <div>
-                            <label class="block font-bold text-gray-700 mb-1">Tanggal Berakhir (Opsional)</label>
-                            <input type="date"
-                                   name="effective_until"
-                                   value="{{ $tutorOverrideAssignment?->effective_until ? $tutorOverrideAssignment->effective_until->format('Y-m-d') : '' }}"
-                                   class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                            <label class="block font-bold text-gray-700 mb-1">Tarif Honor Per Sesi (Rp) <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
+                                <input type="number"
+                                       name="rate"
+                                       x-model="rate"
+                                       min="0"
+                                       step="1000"
+                                       placeholder="75000"
+                                       class="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-bold text-gray-700 mb-1">Tanggal Mulai Berlaku <span class="text-red-500">*</span></label>
+                                <input type="date"
+                                       name="effective_from"
+                                       value="{{ $tutorOverrideAssignment?->effective_from ? $tutorOverrideAssignment->effective_from->format('Y-m-d') : now()->startOfMonth()->toDateString() }}"
+                                       class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                            </div>
+
+                            <div>
+                                <label class="block font-bold text-gray-700 mb-1">Tanggal Berakhir (Opsional)</label>
+                                <input type="date"
+                                       name="effective_until"
+                                       value="{{ $tutorOverrideAssignment?->effective_until ? $tutorOverrideAssignment->effective_until->format('Y-m-d') : '' }}"
+                                       class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-hidden focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500 transition" />
+                            </div>
                         </div>
                     </div>
 
@@ -694,7 +822,7 @@
                             Batal
                         </button>
                         <x-cressco.button type="submit" variant="primary" size="md">
-                            Terapkan Skema Honor
+                            Simpan Pengaturan Honor
                         </x-cressco.button>
                     </div>
                 </form>

@@ -36,17 +36,10 @@
         <!-- Page Header & Action Bar -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200/70">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Honor Tutor & Kompensasi</h1>
+                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Honor Tutor</h1>
                 <p class="text-xs text-gray-500 mt-1">
-                    Pengawasan rekapitulasi honor pengajar berbasis sesi aktual dan konfigurasi skema kompensasi di {{ $tenant->name ?? 'Prime Academy' }}.
+                    Pengawasan rekapitulasi honor pengajar berbasis sesi aktual dan slip kompensasi di {{ $tenant->name ?? 'Prime Academy' }}.
                 </p>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <x-cressco.button variant="primary" size="md" @click="openCreateScheme()">
-                    <x-cressco.icon-helper name="plus" class="w-4 h-4 mr-1.5" />
-                    <span>Buat Skema Honor</span>
-                </x-cressco.button>
             </div>
         </div>
 

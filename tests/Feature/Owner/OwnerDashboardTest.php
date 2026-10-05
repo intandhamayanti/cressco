@@ -119,9 +119,8 @@ class OwnerDashboardTest extends TestCase
         $response->assertSee('Total Siswa Aktif');
         $response->assertSee('Revenue');
         $response->assertSee('Payment Overview');
-        $response->assertSee('Attendance Overview');
+        $response->assertSee('Revenue vs Expenses');
         $response->assertDontSee('AI Insight');
-        $response->assertSee('Recent Activity');
     }
 
     public function test_owner_dashboard_branch_selector_filters_data(): void

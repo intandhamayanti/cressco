@@ -897,11 +897,13 @@
                             </div>
                             <div>
                                 <x-cressco.chart-task-distribution
-                                    title="Payment Overview"
-                                    subtitle="Monitor payment status and transactions"
-                                    centerLabel="TOTAL PAYMENTS"
+                                    title="Realisasi Pembayaran"
+                                    subtitle="Persentase tagihan siswa yang telah lunas"
+                                    centerLabel="TAGIHAN LUNAS"
+                                    :percentage="78"
+                                    :paidCount="156"
                                     :total="200"
-                                    unit="Payments"
+                                    unit="Tagihan"
                                 />
                             </div>
                         </div>

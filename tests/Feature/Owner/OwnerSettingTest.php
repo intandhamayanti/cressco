@@ -57,13 +57,13 @@ class OwnerSettingTest extends TestCase
             ->get(route('owner.settings'));
 
         $response->assertOk();
-        $response->assertSee('Setting');
+        $response->assertSee('Pengaturan Bimbel');
+        $response->assertSee('Informasi Lembaga Bimbel');
+        $response->assertSee('Prime Academy Surabaya');
+        $response->assertSee('Pengaturan Honor Default Bimbel');
         $response->assertSee('Personal Information');
         $response->assertSee('Ethan Walker');
         $response->assertSee('ethan@gmail.com');
-        $response->assertSee('Prime Academy Surabaya');
-        $response->assertSee('Job Information');
-        $response->assertSee('General Setting');
     }
 
     public function test_owner_can_update_profile_information(): void
@@ -135,6 +135,31 @@ class OwnerSettingTest extends TestCase
         $this->assertDatabaseHas('tenant_settings', [
             'tenant_id' => $this->tenant->id,
             'key' => 'general_settings',
+        ]);
+    }
+
+    public function test_owner_can_update_default_honor_settings(): void
+    {
+        $response = $this->actingAs($this->owner)
+            ->put(route('owner.settings.honor-default'), [
+                'name' => 'Honor Reguler Standar',
+                'method' => 'per_session',
+                'rate' => 175000,
+                'effective_from' => '2026-03-01',
+            ]);
+
+        $response->assertRedirect(route('owner.settings'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('honor_schemes', [
+            'tenant_id' => $this->tenant->id,
+            'method' => 'per_session',
+            'rate' => 175000,
+        ]);
+
+        $this->assertDatabaseHas('honor_assignments', [
+            'tenant_id' => $this->tenant->id,
+            'assignment_type' => 'default',
         ]);
     }
 

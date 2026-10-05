@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\SubmitProofRequest;
 use App\Http\Requests\Admin\UpdatePaymentRequest;
 use App\Http\Requests\Admin\VerifyPaymentRequest;
 use App\Models\Branch;
+use App\Models\Classes;
 use App\Models\Enrollment;
 use App\Models\Payment;
 use App\Models\Student;
@@ -39,6 +40,12 @@ class AdminPaymentController extends Controller
             ->orderBy('name')
             ->get();
 
+        $classes = Classes::where('tenant_id', $tenantId)
+            ->whereIn('branch_id', $accessibleBranchIds)
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
         $students = Student::where('tenant_id', $tenantId)
             ->whereIn('branch_id', $accessibleBranchIds)
             ->where('status', 'active')
@@ -55,7 +62,7 @@ class AdminPaymentController extends Controller
 
         $query = Payment::where('tenant_id', $tenantId)
             ->whereIn('branch_id', $accessibleBranchIds)
-            ->with(['student', 'branch', 'enrollment.classModel', 'recordedBy']);
+            ->with(['student.enrollments.classModel', 'branch', 'enrollment.classModel', 'recordedBy']);
 
         if ($request->filled('branch_id')) {
             $selectedBranchId = $request->input('branch_id');
@@ -63,6 +70,14 @@ class AdminPaymentController extends Controller
                 abort(403, 'Anda tidak memiliki akses ke cabang ini.');
             }
             $query->where('branch_id', $selectedBranchId);
+        }
+
+        if ($request->filled('class_id') && $request->input('class_id') !== 'all') {
+            $classId = $request->input('class_id');
+            $query->where(function ($q) use ($classId) {
+                $q->whereHas('enrollment', fn ($eq) => $eq->where('class_id', $classId))
+                    ->orWhereHas('student.enrollments', fn ($sq) => $sq->where('class_id', $classId)->where('status', 'active'));
+            });
         }
 
         if ($request->filled('status')) {
@@ -94,6 +109,13 @@ class AdminPaymentController extends Controller
         if ($request->filled('branch_id')) {
             $summaryQuery->where('branch_id', $request->input('branch_id'));
         }
+        if ($request->filled('class_id') && $request->input('class_id') !== 'all') {
+            $classId = $request->input('class_id');
+            $summaryQuery->where(function ($q) use ($classId) {
+                $q->whereHas('enrollment', fn ($eq) => $eq->where('class_id', $classId))
+                    ->orWhereHas('student.enrollments', fn ($sq) => $sq->where('class_id', $classId)->where('status', 'active'));
+            });
+        }
         if ($request->filled('period')) {
             $summaryQuery->where('period', $request->input('period'));
         }
@@ -116,6 +138,7 @@ class AdminPaymentController extends Controller
             'tenant' => $tenant,
             'payments' => $payments,
             'branches' => $branches,
+            'classes' => $classes,
             'students' => $students,
             'enrollments' => $enrollments,
             'periods' => $periods,
@@ -128,6 +151,7 @@ class AdminPaymentController extends Controller
             ],
             'filters' => [
                 'branch_id' => $request->input('branch_id'),
+                'class_id' => $request->input('class_id'),
                 'status' => $request->input('status'),
                 'period' => $request->input('period'),
                 'search' => $request->input('search'),

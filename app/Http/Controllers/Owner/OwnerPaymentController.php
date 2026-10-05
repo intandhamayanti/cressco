@@ -114,13 +114,14 @@ class OwnerPaymentController extends Controller
 
     public function store(StorePaymentRequest $request): RedirectResponse
     {
-        $tenantId = TenantContext::getTenantId() ?? $request->user()->tenant_id;
+        $owner = $request->user();
+        $tenantId = TenantContext::getTenantId() ?? $owner->tenant_id;
         $data = $request->validated();
         $data['tenant_id'] = $tenantId;
 
         $proofFile = $request->file('proof') ?? $request->file('payment_proof');
 
-        $this->paymentService->recordPayment($data, $request->user(), $proofFile);
+        $this->paymentService->recordPayment($data, $owner, $proofFile);
 
         return redirect()->route('owner.payments.index')->with('success', 'Tagihan pembayaran berhasil dibuat.');
     }
@@ -157,8 +158,9 @@ class OwnerPaymentController extends Controller
 
     public function reminder(Request $request, Payment $payment): JsonResponse
     {
-        $tenantId = TenantContext::getTenantId() ?? auth()->user()->tenant_id;
-        abort_unless($payment->tenant_id === $tenantId, 403);
+        $owner = $request->user();
+        $tenantId = TenantContext::getTenantId() ?? $owner->tenant_id;
+        abort_unless($payment->tenant_id === $tenantId, 403, 'Akses ke tagihan pembayaran ditolak.');
 
         $reminderData = $this->reminderService->generate($payment, $request->input('notes'));
 
@@ -167,25 +169,27 @@ class OwnerPaymentController extends Controller
 
     public function update(UpdatePaymentRequest $request, Payment $payment): RedirectResponse
     {
-        $tenantId = TenantContext::getTenantId() ?? $request->user()->tenant_id;
-        abort_unless($payment->tenant_id === $tenantId, 403);
+        $owner = $request->user();
+        $tenantId = TenantContext::getTenantId() ?? $owner->tenant_id;
+        abort_unless($payment->tenant_id === $tenantId, 403, 'Akses ke tagihan pembayaran ditolak.');
 
         $data = $request->validated();
         $proofFile = $request->file('proof') ?? $request->file('payment_proof');
 
-        $this->paymentService->updatePayment($payment, $data, $request->user(), $proofFile);
+        $this->paymentService->updatePayment($payment, $data, $owner, $proofFile);
 
         return redirect()->route('owner.payments.show', $payment)->with('success', 'Data tagihan/pembayaran berhasil diperbarui.');
     }
 
     public function verify(VerifyPaymentRequest $request, Payment $payment): RedirectResponse
     {
-        $tenantId = TenantContext::getTenantId() ?? $request->user()->tenant_id;
-        abort_unless($payment->tenant_id === $tenantId, 403);
+        $owner = $request->user();
+        $tenantId = TenantContext::getTenantId() ?? $owner->tenant_id;
+        abort_unless($payment->tenant_id === $tenantId, 403, 'Akses ke tagihan pembayaran ditolak.');
 
         $this->paymentService->verifyPayment(
             $payment,
-            $request->user(),
+            $owner,
             $request->input('paid_at'),
             $request->input('notes')
         );
@@ -195,15 +199,16 @@ class OwnerPaymentController extends Controller
 
     public function recordPartialPayment(RecordPartialPaymentRequest $request, Payment $payment): RedirectResponse
     {
-        $tenantId = TenantContext::getTenantId() ?? $request->user()->tenant_id;
-        abort_unless($payment->tenant_id === $tenantId, 403);
+        $owner = $request->user();
+        $tenantId = TenantContext::getTenantId() ?? $owner->tenant_id;
+        abort_unless($payment->tenant_id === $tenantId, 403, 'Akses ke tagihan pembayaran ditolak.');
 
         $proofFile = $request->file('proof') ?? $request->file('payment_proof');
 
         $result = $this->paymentService->recordPartialPayment(
             $payment,
             (float) $request->input('amount_paid'),
-            $request->user(),
+            $owner,
             $request->input('paid_at'),
             $request->input('notes'),
             $proofFile
@@ -218,20 +223,22 @@ class OwnerPaymentController extends Controller
 
     public function submitProof(SubmitProofRequest $request, Payment $payment): RedirectResponse
     {
-        $tenantId = TenantContext::getTenantId() ?? $request->user()->tenant_id;
-        abort_unless($payment->tenant_id === $tenantId, 403);
+        $owner = $request->user();
+        $tenantId = TenantContext::getTenantId() ?? $owner->tenant_id;
+        abort_unless($payment->tenant_id === $tenantId, 403, 'Akses ke tagihan pembayaran ditolak.');
 
         $proofFile = $request->file('proof') ?? $request->file('payment_proof');
 
-        $this->paymentService->submitProof($payment, $proofFile, $request->user(), $request->input('notes'));
+        $this->paymentService->submitProof($payment, $proofFile, $owner, $request->input('notes'));
 
         return redirect()->back()->with('success', 'Bukti pembayaran berhasil diunggah. Status diubah menjadi Menunggu Verifikasi.');
     }
 
-    public function destroy(Payment $payment): RedirectResponse
+    public function destroy(Request $request, Payment $payment): RedirectResponse
     {
-        $tenantId = TenantContext::getTenantId() ?? auth()->user()->tenant_id;
-        abort_unless($payment->tenant_id === $tenantId, 403);
+        $owner = $request->user();
+        $tenantId = TenantContext::getTenantId() ?? $owner->tenant_id;
+        abort_unless($payment->tenant_id === $tenantId, 403, 'Akses ke tagihan pembayaran ditolak.');
 
         $payment->delete();
 

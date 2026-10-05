@@ -13,16 +13,16 @@ class StudentAttendance extends Model
 
     const CREATED_AT = null;
 
-    protected $fillable = [
-        'tenant_id',
-        'branch_id',
-        'teaching_session_id',
-        'student_id',
-        'status',
-        'note',
-        'recorded_at',
-        'recorded_by',
-    ];
+    protected $guarded = [];
+
+    protected static function booted(): void
+    {
+        static::creating(function ($model) {
+            if (empty($model->recorded_at)) {
+                $model->recorded_at = now();
+            }
+        });
+    }
 
     /**
      * @return array<string, string>

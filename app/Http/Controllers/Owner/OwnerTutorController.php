@@ -133,16 +133,51 @@ class OwnerTutorController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        // Optional Tutor Override Honor Scheme
-        if (! empty($validated['honor_scheme_id'])) {
-            HonorAssignment::create([
-                'id' => (string) Str::uuid(),
-                'tenant_id' => $tenant->id,
-                'tutor_id' => $tutor->id,
-                'honor_scheme_id' => $validated['honor_scheme_id'],
-                'assignment_type' => 'tutor_override',
-                'effective_from' => now()->startOfMonth()->toDateString(),
-            ]);
+        // Optional Tutor Honor Configuration
+        $honorMode = $validated['honor_mode'] ?? null;
+        $schemeId = $validated['honor_scheme_id'] ?? null;
+
+        if ($honorMode === 'other' || (! $honorMode && (! empty($validated['method']) || ! empty($schemeId)))) {
+            if (! $schemeId && ! empty($validated['method'])) {
+                $method = $validated['method'];
+                $rate = in_array($method, ['per_session', 'per_student']) ? (float) ($validated['rate'] ?? 0) : null;
+                $fixedAmount = $method === 'fixed_monthly' ? (float) ($validated['rate'] ?? 0) : null;
+                $percentage = $method === 'revenue_share' ? (float) ($validated['rate'] ?? 0) : null;
+
+                $methodLabel = match ($method) {
+                    'per_session' => 'Per Sesi Mengajar',
+                    'per_student' => 'Per Siswa',
+                    'fixed_monthly' => 'Bulanan Tetap',
+                    default => 'Bagi Hasil',
+                };
+
+                $scheme = HonorScheme::firstOrCreate([
+                    'tenant_id' => $tenant->id,
+                    'method' => $method,
+                    'rate' => $rate,
+                    'fixed_amount' => $fixedAmount,
+                    'percentage' => $percentage,
+                    'status' => 'active',
+                ], [
+                    'id' => (string) Str::uuid(),
+                    'name' => 'Honor '.$methodLabel.' (Rp '.number_format($rate ?: $fixedAmount ?: 0, 0, ',', '.').')',
+                    'effective_from' => $validated['effective_from'] ?? now()->startOfMonth()->toDateString(),
+                    'created_by' => $request->user()->id,
+                ]);
+
+                $schemeId = $scheme->id;
+            }
+
+            if ($schemeId) {
+                HonorAssignment::create([
+                    'id' => (string) Str::uuid(),
+                    'tenant_id' => $tenant->id,
+                    'tutor_id' => $tutor->id,
+                    'honor_scheme_id' => $schemeId,
+                    'assignment_type' => 'tutor_override',
+                    'effective_from' => $validated['effective_from'] ?? now()->startOfMonth()->toDateString(),
+                ]);
+            }
         }
 
         // Optional Class Assignment
@@ -241,33 +276,68 @@ class OwnerTutorController extends Controller
 
         $tutor->update($updateData);
 
-        // Update or remove Honor Scheme Override
-        if (! empty($validated['honor_scheme_id'])) {
-            $override = HonorAssignment::where('tenant_id', $tenant->id)
-                ->where('tutor_id', $tutor->id)
-                ->where('assignment_type', 'tutor_override')
-                ->first();
+        // Update or remove Honor Configuration
+        $honorMode = $validated['honor_mode'] ?? null;
+        $schemeId = $validated['honor_scheme_id'] ?? null;
 
-            if ($override) {
-                $override->update([
-                    'honor_scheme_id' => $validated['honor_scheme_id'],
-                ]);
-            } else {
-                HonorAssignment::create([
-                    'id' => (string) Str::uuid(),
-                    'tenant_id' => $tenant->id,
-                    'tutor_id' => $tutor->id,
-                    'honor_scheme_id' => $validated['honor_scheme_id'],
-                    'assignment_type' => 'tutor_override',
-                    'effective_from' => now()->startOfMonth()->toDateString(),
-                ]);
-            }
-        } else {
-            // Remove override if cleared
+        if ($honorMode === 'default' || (empty($schemeId) && empty($validated['method']) && $honorMode !== 'other')) {
             HonorAssignment::where('tenant_id', $tenant->id)
                 ->where('tutor_id', $tutor->id)
                 ->where('assignment_type', 'tutor_override')
                 ->delete();
+        } else {
+            if (! $schemeId && ! empty($validated['method'])) {
+                $method = $validated['method'];
+                $rate = in_array($method, ['per_session', 'per_student']) ? (float) ($validated['rate'] ?? 0) : null;
+                $fixedAmount = $method === 'fixed_monthly' ? (float) ($validated['rate'] ?? 0) : null;
+                $percentage = $method === 'revenue_share' ? (float) ($validated['rate'] ?? 0) : null;
+
+                $methodLabel = match ($method) {
+                    'per_session' => 'Per Sesi Mengajar',
+                    'per_student' => 'Per Siswa',
+                    'fixed_monthly' => 'Bulanan Tetap',
+                    default => 'Bagi Hasil',
+                };
+
+                $scheme = HonorScheme::firstOrCreate([
+                    'tenant_id' => $tenant->id,
+                    'method' => $method,
+                    'rate' => $rate,
+                    'fixed_amount' => $fixedAmount,
+                    'percentage' => $percentage,
+                    'status' => 'active',
+                ], [
+                    'id' => (string) Str::uuid(),
+                    'name' => 'Honor '.$methodLabel.' (Rp '.number_format($rate ?: $fixedAmount ?: 0, 0, ',', '.').')',
+                    'effective_from' => $validated['effective_from'] ?? now()->startOfMonth()->toDateString(),
+                    'created_by' => $request->user()->id,
+                ]);
+
+                $schemeId = $scheme->id;
+            }
+
+            if ($schemeId) {
+                $override = HonorAssignment::where('tenant_id', $tenant->id)
+                    ->where('tutor_id', $tutor->id)
+                    ->where('assignment_type', 'tutor_override')
+                    ->first();
+
+                if ($override) {
+                    $override->update([
+                        'honor_scheme_id' => $schemeId,
+                        'effective_from' => $validated['effective_from'] ?? $override->effective_from ?? now()->startOfMonth()->toDateString(),
+                    ]);
+                } else {
+                    HonorAssignment::create([
+                        'id' => (string) Str::uuid(),
+                        'tenant_id' => $tenant->id,
+                        'tutor_id' => $tutor->id,
+                        'honor_scheme_id' => $schemeId,
+                        'assignment_type' => 'tutor_override',
+                        'effective_from' => $validated['effective_from'] ?? now()->startOfMonth()->toDateString(),
+                    ]);
+                }
+            }
         }
 
         return back()->with('success', "Data tutor '{$tutor->name}' berhasil diperbarui.");
@@ -361,15 +431,51 @@ class OwnerTutorController extends Controller
         Gate::authorize('update', $tutor);
 
         $validated = $request->validated();
+        $honorMode = $request->input('honor_mode');
 
-        if (empty($validated['honor_scheme_id'])) {
+        if ($honorMode === 'default' || (empty($validated['honor_scheme_id']) && empty($validated['method']))) {
             HonorAssignment::where('tenant_id', $tenant->id)
                 ->where('tutor_id', $tutor->id)
                 ->where('assignment_type', 'tutor_override')
                 ->delete();
 
-            return back()->with('success', "Skema honor khusus untuk {$tutor->name} telah dihapus. Tutor kini menggunakan skema default tenant.");
+            return back()->with('success', "Pengaturan honor untuk {$tutor->name} berhasil diatur ke Default Bimbel.");
         }
+
+        $schemeId = $validated['honor_scheme_id'] ?? null;
+
+        if (! $schemeId && ! empty($validated['method'])) {
+            $method = $validated['method'];
+            $rate = in_array($method, ['per_session', 'per_student']) ? (float) ($validated['rate'] ?? 0) : null;
+            $fixedAmount = $method === 'fixed_monthly' ? (float) ($validated['rate'] ?? 0) : null;
+            $percentage = $method === 'revenue_share' ? (float) ($validated['rate'] ?? 0) : null;
+
+            $methodLabel = match ($method) {
+                'per_session' => 'Per Sesi',
+                'per_student' => 'Per Siswa',
+                'fixed_monthly' => 'Bulanan Tetap',
+                default => 'Bagi Hasil',
+            };
+
+            $scheme = HonorScheme::firstOrCreate([
+                'tenant_id' => $tenant->id,
+                'method' => $method,
+                'rate' => $rate,
+                'fixed_amount' => $fixedAmount,
+                'percentage' => $percentage,
+                'status' => 'active',
+            ], [
+                'id' => (string) Str::uuid(),
+                'name' => 'Honor '.$methodLabel.' (Rp '.number_format($rate ?: $fixedAmount ?: 0, 0, ',', '.').')',
+                'effective_from' => $validated['effective_from'] ?? now()->startOfMonth()->toDateString(),
+                'created_by' => $request->user()->id,
+            ]);
+
+            $schemeId = $scheme->id;
+        }
+
+        $effectiveFrom = $validated['effective_from'] ?? now()->startOfMonth()->toDateString();
+        $effectiveUntil = $validated['effective_until'] ?? null;
 
         $override = HonorAssignment::where('tenant_id', $tenant->id)
             ->where('tutor_id', $tutor->id)
@@ -378,24 +484,22 @@ class OwnerTutorController extends Controller
 
         if ($override) {
             $override->update([
-                'honor_scheme_id' => $validated['honor_scheme_id'],
-                'effective_from' => $validated['effective_from'],
-                'effective_until' => $validated['effective_until'] ?? null,
+                'honor_scheme_id' => $schemeId,
+                'effective_from' => $effectiveFrom,
+                'effective_until' => $effectiveUntil,
             ]);
         } else {
             HonorAssignment::create([
                 'id' => (string) Str::uuid(),
                 'tenant_id' => $tenant->id,
                 'tutor_id' => $tutor->id,
-                'honor_scheme_id' => $validated['honor_scheme_id'],
+                'honor_scheme_id' => $schemeId,
                 'assignment_type' => 'tutor_override',
-                'effective_from' => $validated['effective_from'],
-                'effective_until' => $validated['effective_until'] ?? null,
+                'effective_from' => $effectiveFrom,
+                'effective_until' => $effectiveUntil,
             ]);
         }
 
-        $schemeName = HonorScheme::find($validated['honor_scheme_id'])?->name ?? 'Skema Honor';
-
-        return back()->with('success', "Skema honor khusus '{$schemeName}' berhasil diterapkan untuk {$tutor->name}.");
+        return back()->with('success', "Pengaturan honor untuk {$tutor->name} berhasil diperbarui.");
     }
 }

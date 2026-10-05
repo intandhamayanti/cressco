@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateAttendanceRequest;
 use App\Models\Classes;
 use App\Models\StudentAttendance;
 use App\Models\TeachingSession;
+use App\Models\User;
 use App\Services\TenantContext;
 use App\Services\TutorReplacementService;
 use Carbon\Carbon;
@@ -154,14 +155,25 @@ class AdminAttendanceController extends Controller
         }
 
         $session->load([
-            'classModel',
+            'classModel.branch',
             'scheduledTutor',
             'actualTutor',
             'branch',
             'studentAttendances.student',
+            'tutorReplacements' => function ($q) use ($tenant) {
+                $q->where('tenant_id', $tenant->id)
+                    ->with(['replacementTutor', 'previousActualTutor', 'scheduledTutor', 'changedBy'])
+                    ->latest('changed_at');
+            },
         ]);
 
-        return view('admin.attendances.session', compact('tenant', 'session'));
+        $availableTutors = User::where('tenant_id', $tenant->id)
+            ->whereIn('role', ['tutor', 'admin', 'owner'])
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.attendances.session', compact('tenant', 'session', 'availableTutors'));
     }
 
     public function update(UpdateAttendanceRequest $request, StudentAttendance $attendance): RedirectResponse

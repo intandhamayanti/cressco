@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\HonorAssignment;
 use App\Models\HonorCalculation;
-use App\Models\HonorScheme;
 use App\Models\TeachingSession;
 use App\Models\User;
 use App\Services\HonorCalculationService;
 use App\Services\TenantContext;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -36,8 +34,7 @@ class AdminHonorController extends Controller
         $accessibleBranchIds = $admin->branches()->pluck('branches.id')->toArray();
 
         $search = $request->query('search');
-        $branchId = $request->query('branch_id', 'all');
-        $status = $request->query('status', 'all');
+        $tutorId = $request->query('tutor_id', 'all');
         $period = $request->query('period');
 
         $query = HonorCalculation::where('tenant_id', $tenant->id)
@@ -54,15 +51,8 @@ class AdminHonorController extends Controller
             });
         }
 
-        if ($branchId && $branchId !== 'all') {
-            if (! in_array($branchId, $accessibleBranchIds)) {
-                abort(403, 'Anda tidak memiliki akses ke cabang ini.');
-            }
-            $query->where('branch_id', $branchId);
-        }
-
-        if ($status && $status !== 'all') {
-            $query->where('status', $status);
+        if ($tutorId && $tutorId !== 'all') {
+            $query->where('tutor_id', $tutorId);
         }
 
         if ($period) {
@@ -74,37 +64,18 @@ class AdminHonorController extends Controller
 
         $calculations = $query->latest('period_start')->get();
 
-        // Schemes in tenant
-        $schemes = HonorScheme::where('tenant_id', $tenant->id)
-            ->with(['assignments.tutor', 'createdBy'])
-            ->latest()
-            ->get();
-
-        $defaultSchemeAssignment = HonorAssignment::where('tenant_id', $tenant->id)
-            ->where('assignment_type', 'default')
-            ->first();
-        $defaultSchemeId = $defaultSchemeAssignment?->honor_scheme_id;
-
-        // Metrics scoped to accessible branches
+        // Operational metrics scoped to accessible branches
         $baseCalcQuery = HonorCalculation::where('tenant_id', $tenant->id)
             ->where(function ($q) use ($accessibleBranchIds) {
                 $q->whereIn('branch_id', $accessibleBranchIds)
                     ->orWhereNull('branch_id');
             });
 
-        $totalPaidAmount = (clone $baseCalcQuery)->where('status', 'paid')->sum('final_amount');
-        $pendingFinalAmount = (clone $baseCalcQuery)->where('status', 'final')->sum('final_amount');
-        $pendingFinalCount = (clone $baseCalcQuery)->where('status', 'final')->count();
-        $activeSchemesCount = HonorScheme::where('tenant_id', $tenant->id)->where('status', 'active')->count();
+        $totalEstimatedHonor = (clone $baseCalcQuery)->sum('final_amount');
         $totalCompletedSessions = TeachingSession::where('tenant_id', $tenant->id)
             ->whereIn('branch_id', $accessibleBranchIds)
             ->where('status', 'completed')
             ->count();
-
-        $branches = Branch::where('tenant_id', $tenant->id)
-            ->whereIn('id', $accessibleBranchIds)
-            ->orderBy('name')
-            ->get();
 
         $tutors = User::where('tenant_id', $tenant->id)
             ->where('role', 'tutor')
@@ -115,21 +86,31 @@ class AdminHonorController extends Controller
             ->orderBy('name')
             ->get();
 
+        $periods = HonorCalculation::where('tenant_id', $tenant->id)
+            ->where(function ($q) use ($accessibleBranchIds) {
+                $q->whereIn('branch_id', $accessibleBranchIds)
+                    ->orWhereNull('branch_id');
+            })
+            ->whereNotNull('period_start')
+            ->orderByDesc('period_start')
+            ->pluck('period_start')
+            ->map(fn ($date) => $date ? Carbon::parse($date)->format('Y-m') : null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $totalActiveTutors = $calculations->pluck('tutor_id')->unique()->count();
+
         return view('admin.honors.index', compact(
             'tenant',
             'calculations',
-            'schemes',
-            'defaultSchemeId',
-            'branches',
             'tutors',
-            'totalPaidAmount',
-            'pendingFinalAmount',
-            'pendingFinalCount',
-            'activeSchemesCount',
+            'periods',
+            'totalActiveTutors',
             'totalCompletedSessions',
+            'totalEstimatedHonor',
             'search',
-            'branchId',
-            'status',
+            'tutorId',
             'period'
         ));
     }
@@ -152,14 +133,21 @@ class AdminHonorController extends Controller
 
         $calculation->load(['tutor', 'honorScheme', 'branch', 'calculatedBy', 'finalizedBy']);
 
-        // Load actual teaching sessions for this tutor in the calculation period
+        // Load actual teaching sessions where this tutor was the actual tutor (or scheduled tutor when no replacement)
         $sessionsQuery = TeachingSession::where('tenant_id', $tenant->id)
-            ->where('actual_tutor_id', $calculation->tutor_id)
+            ->where(function ($q) use ($calculation) {
+                $q->where('actual_tutor_id', $calculation->tutor_id)
+                    ->orWhere(function ($sq) use ($calculation) {
+                        $sq->whereNull('actual_tutor_id')
+                            ->where('scheduled_tutor_id', $calculation->tutor_id);
+                    });
+            })
             ->whereBetween('session_date', [$calculation->period_start, $calculation->period_end])
             ->where('status', 'completed')
             ->whereIn('branch_id', $accessibleBranchIds)
-            ->with(['class.branch', 'scheduledTutor'])
-            ->orderBy('session_date');
+            ->with(['classModel.branch', 'scheduledTutor', 'actualTutor'])
+            ->orderBy('session_date')
+            ->orderBy('start_time');
 
         if ($calculation->branch_id) {
             $sessionsQuery->where('branch_id', $calculation->branch_id);
@@ -167,7 +155,9 @@ class AdminHonorController extends Controller
 
         $sessions = $sessionsQuery->get();
 
-        return view('admin.honors.show', compact('tenant', 'calculation', 'sessions'));
+        $ratePerSession = $calculation->honorScheme?->rate ?? ($calculation->total_sessions > 0 ? (float) ($calculation->base_amount / $calculation->total_sessions) : 0);
+
+        return view('admin.honors.show', compact('tenant', 'calculation', 'sessions', 'ratePerSession'));
     }
 
     public function calculate(Request $request): RedirectResponse

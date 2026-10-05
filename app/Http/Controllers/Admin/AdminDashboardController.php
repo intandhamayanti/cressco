@@ -153,6 +153,21 @@ class AdminDashboardController extends Controller
             ->values()
             ->take(6);
 
+        // Sessions needing attention (Tutor absence reported or missing actual tutor)
+        $sessionsNeedingAttention = TeachingSession::where('tenant_id', $tenant->id)
+            ->whereIn('branch_id', $effectiveBranchIds)
+            ->where('status', 'scheduled')
+            ->whereDate('session_date', '>=', $now->toDateString())
+            ->where(function ($q) {
+                $q->whereNull('actual_tutor_id')
+                    ->orWhere('notes', 'like', '%[TUTOR BERHALANGAN]%');
+            })
+            ->with(['classModel', 'scheduledTutor', 'actualTutor', 'branch'])
+            ->orderBy('session_date')
+            ->orderBy('start_time')
+            ->limit(5)
+            ->get();
+
         return view('admin.dashboard', compact(
             'tenant',
             'accessibleBranches',
@@ -169,7 +184,8 @@ class AdminDashboardController extends Controller
             'pendingPaymentsCount',
             'pendingPaymentsAmount',
             'actionRequiredPayments',
-            'recentActivities'
+            'recentActivities',
+            'sessionsNeedingAttention'
         ));
     }
 }

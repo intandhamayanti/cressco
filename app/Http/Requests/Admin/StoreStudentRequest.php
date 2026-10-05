@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Classes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,6 +13,16 @@ class StoreStudentRequest extends FormRequest
         $user = $this->user();
 
         return $user !== null && $user->isAdmin();
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $class = $this->route('class');
+        if ($class instanceof Classes && empty($this->input('branch_id'))) {
+            $this->merge([
+                'branch_id' => $class->branch_id,
+            ]);
+        }
     }
 
     /**
@@ -38,6 +49,8 @@ class StoreStudentRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:1000'],
             'joined_at' => ['nullable', 'date'],
             'status' => ['nullable', 'string', Rule::in(['active', 'inactive'])],
+            'class_ids' => ['nullable', 'array'],
+            'class_ids.*' => ['nullable', 'uuid'],
         ];
     }
 

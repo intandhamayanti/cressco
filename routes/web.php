@@ -9,11 +9,14 @@ use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\AdminStudentController;
 use App\Http\Controllers\Admin\AdminTutorController;
+use App\Http\Controllers\Owner\OwnerAttendanceController;
 use App\Http\Controllers\Owner\OwnerBranchController;
 use App\Http\Controllers\Owner\OwnerClassController;
 use App\Http\Controllers\Owner\OwnerDashboardController;
 use App\Http\Controllers\Owner\OwnerHonorController;
+use App\Http\Controllers\Owner\OwnerImportController;
 use App\Http\Controllers\Owner\OwnerPaymentController;
+use App\Http\Controllers\Owner\OwnerProfileController;
 use App\Http\Controllers\Owner\OwnerReportController;
 use App\Http\Controllers\Owner\OwnerSettingController;
 use App\Http\Controllers\Owner\OwnerStudentController;
@@ -130,7 +133,7 @@ Route::middleware(['auth', 'tenant', 'role:owner'])->prefix('owner')->name('owne
     Route::patch('/honors/schemes/{scheme}/toggle-status', [OwnerHonorController::class, 'toggleSchemeStatus'])->name('honors.schemes.toggle-status');
     Route::patch('/honors/schemes/{scheme}/set-default', [OwnerHonorController::class, 'setDefaultScheme'])->name('honors.schemes.set-default');
 
-    // Pembayaran & Invoice
+    // Pembayaran & Tagihan
     Route::get('/payments', [OwnerPaymentController::class, 'index'])->name('payments.index');
     Route::post('/payments', [OwnerPaymentController::class, 'store'])->name('payments.store');
     Route::get('/payments/{payment}', [OwnerPaymentController::class, 'show'])->name('payments.show');
@@ -141,14 +144,30 @@ Route::middleware(['auth', 'tenant', 'role:owner'])->prefix('owner')->name('owne
     Route::post('/payments/{payment}/proof', [OwnerPaymentController::class, 'submitProof'])->name('payments.submit-proof');
     Route::delete('/payments/{payment}', [OwnerPaymentController::class, 'destroy'])->name('payments.destroy');
 
+    // Absensi (oversight - read only)
+    Route::get('/attendances', [OwnerAttendanceController::class, 'index'])->name('attendances.index');
+    Route::get('/attendances/sessions/{session}', [OwnerAttendanceController::class, 'showSession'])->name('attendances.sessions.show');
+
+    // Import Data (Siswa & Tutor)
+    Route::get('/imports/{type}', [OwnerImportController::class, 'create'])->whereIn('type', ['students', 'tutors'])->name('imports.create');
+    Route::get('/imports/{type}/template', [OwnerImportController::class, 'template'])->whereIn('type', ['students', 'tutors'])->name('imports.template');
+    Route::post('/imports/{type}/preview', [OwnerImportController::class, 'preview'])->whereIn('type', ['students', 'tutors'])->name('imports.preview');
+    Route::post('/imports/{type}/commit', [OwnerImportController::class, 'commit'])->whereIn('type', ['students', 'tutors'])->name('imports.commit');
+
     // Laporan (Financial & Operational Reports)
     Route::get('/reports', [OwnerReportController::class, 'index'])->name('reports.index');
 
-    // Pengaturan & Profil Owner
+    // Pengaturan Bimbel & Profil Owner
     Route::get('/settings', [OwnerSettingController::class, 'index'])->name('settings');
     Route::put('/settings/profile', [OwnerSettingController::class, 'updateProfile'])->name('settings.profile');
     Route::put('/settings/password', [OwnerSettingController::class, 'updatePassword'])->name('settings.password');
     Route::put('/settings/tenant', [OwnerSettingController::class, 'updateTenant'])->name('settings.tenant');
+    Route::put('/settings/honor-default', [OwnerSettingController::class, 'updateDefaultHonor'])->name('settings.honor-default');
+
+    // Profil Saya (akun pribadi)
+    Route::get('/profile', [OwnerProfileController::class, 'index'])->name('profile');
+    Route::put('/profile', [OwnerProfileController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/password', [OwnerProfileController::class, 'updatePassword'])->name('profile.password');
 });
 
 // Admin Portal Routes
@@ -158,10 +177,16 @@ Route::middleware(['auth', 'tenant', 'role:admin'])->prefix('admin')->name('admi
 
     // Management Siswa
     Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
+    Route::get('/students/import/template', [AdminStudentController::class, 'importTemplate'])->name('students.import.template');
+    Route::post('/students/import/preview', [AdminStudentController::class, 'importPreview'])->name('students.import.preview');
+    Route::post('/students/import/commit', [AdminStudentController::class, 'importCommit'])->name('students.import.commit');
     Route::post('/students', [AdminStudentController::class, 'store'])->name('students.store');
     Route::get('/students/{student}', [AdminStudentController::class, 'show'])->name('students.show');
     Route::put('/students/{student}', [AdminStudentController::class, 'update'])->name('students.update');
     Route::patch('/students/{student}/toggle-status', [AdminStudentController::class, 'toggleStatus'])->name('students.toggle-status');
+    Route::post('/students/{student}/enrollments', [AdminStudentController::class, 'enrollClass'])->name('students.enrollments.store');
+    Route::patch('/students/{student}/enrollments/{enrollment}/toggle', [AdminStudentController::class, 'toggleEnrollment'])->name('students.enrollments.toggle');
+    Route::delete('/students/{student}/enrollments/{enrollment}', [AdminStudentController::class, 'destroyEnrollment'])->name('students.enrollments.destroy');
 
     // Management Kelas & Jadwal
     Route::get('/classes', [AdminClassController::class, 'index'])->name('classes.index');
@@ -169,6 +194,10 @@ Route::middleware(['auth', 'tenant', 'role:admin'])->prefix('admin')->name('admi
     Route::get('/classes/{class}', [AdminClassController::class, 'show'])->name('classes.show');
     Route::put('/classes/{class}', [AdminClassController::class, 'update'])->name('classes.update');
     Route::patch('/classes/{class}/toggle-status', [AdminClassController::class, 'toggleStatus'])->name('classes.toggle-status');
+    Route::post('/classes/{class}/enroll-students', [AdminClassController::class, 'enrollStudents'])->name('classes.enroll-students');
+    Route::post('/classes/{class}/students', [AdminClassController::class, 'storeStudent'])->name('classes.store-student');
+    Route::patch('/classes/{class}/enrollments/{enrollment}/toggle', [AdminClassController::class, 'toggleEnrollment'])->name('classes.enrollments.toggle');
+    Route::delete('/classes/{class}/enrollments/{enrollment}', [AdminClassController::class, 'destroyEnrollment'])->name('classes.enrollments.destroy');
     Route::post('/classes/{class}/tutors', [AdminClassController::class, 'assignTutor'])->name('classes.assign-tutor');
     Route::patch('/classes/{class}/tutors/{assignment}/toggle-status', [AdminClassController::class, 'toggleTutorAssignment'])->name('classes.tutors.toggle-status');
     Route::post('/classes/{class}/schedules', [AdminClassController::class, 'storeSchedule'])->name('classes.schedules.store');
@@ -229,6 +258,7 @@ Route::middleware(['auth', 'tenant', 'role:tutor'])->prefix('tutor')->name('tuto
     Route::get('/sessions', [TutorSessionController::class, 'index'])->name('sessions.index');
     Route::get('/sessions/{session}', [TutorSessionController::class, 'show'])->name('sessions.show');
     Route::put('/sessions/{session}', [TutorSessionController::class, 'update'])->name('sessions.update');
+    Route::post('/sessions/{session}/report-absence', [TutorSessionController::class, 'reportAbsence'])->name('sessions.report-absence');
 
     // Presensi & Absensi Siswa
     Route::post('/sessions/{session}/attendances', [TutorAttendanceController::class, 'store'])->name('sessions.attendances.store');

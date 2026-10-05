@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tutor;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tutor\ReportAbsenceRequest;
 use App\Http\Requests\Tutor\UpdateTeachingSessionRequest;
 use App\Models\Branch;
 use App\Models\Classes;
@@ -214,5 +215,33 @@ class TutorSessionController extends Controller
 
         return redirect()->route('tutor.sessions.show', $session->id)
             ->with('success', 'Materi dan catatan sesi mengajar berhasil diperbarui.');
+    }
+
+    public function reportAbsence(ReportAbsenceRequest $request, TeachingSession $session): RedirectResponse
+    {
+        $user = $request->user();
+        $tenant = TenantContext::getTenant() ?? $user->tenant;
+
+        if (! $tenant || $session->tenant_id !== $tenant->id) {
+            abort(404, 'Sesi mengajar tidak ditemukan.');
+        }
+
+        if ($session->status !== 'scheduled') {
+            return back()->with('error', 'Hanya sesi dengan status terjadwal yang dapat dilaporkan berhalangan.');
+        }
+
+        $validated = $request->validated();
+        $reason = ! empty($validated['reason']) ? trim($validated['reason']) : 'Tutor berhalangan hadir';
+
+        $timestamp = now()->translatedFormat('d M Y H:i');
+        $absenceNote = "[TUTOR BERHALANGAN] {$user->name}: {$reason} (Dilaporkan pada {$timestamp})";
+        $updatedNotes = $session->notes ? $session->notes."\n".$absenceNote : $absenceNote;
+
+        $session->update([
+            'actual_tutor_id' => null,
+            'notes' => $updatedNotes,
+        ]);
+
+        return back()->with('success', 'Laporan ketidakhadiran berhasil dikirim. Admin akan mengatur tutor pengganti untuk sesi ini.');
     }
 }

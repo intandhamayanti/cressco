@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Branch;
 use App\Models\BranchUser;
 use App\Models\Classes;
+use App\Models\Enrollment;
 use App\Models\HonorCalculation;
 use App\Models\HonorScheme;
 use App\Models\Payment;
@@ -325,6 +326,109 @@ class AdminPaymentAndHonorTest extends TestCase
         $response->assertDontSee($invoiceIdShort);
     }
 
+    public function test_admin_can_filter_payments_by_class_and_combined_filters_with_updated_ui(): void
+    {
+        $this->actingAs($this->adminMalang);
+
+        // Create two classes in Malang branch
+        $classA = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '12 SMA Intensif UTBK',
+            'status' => 'active',
+        ]);
+
+        $classB = Classes::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => '9 SMP Reguler',
+            'status' => 'active',
+        ]);
+
+        // Enroll studentMalang in classA
+        Enrollment::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'student_id' => $this->studentMalang->id,
+            'class_id' => $classA->id,
+            'started_at' => now()->toDateString(),
+            'status' => 'active',
+        ]);
+
+        // Create second student in Malang in classB
+        $student2 = Student::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'name' => 'Budi Siswa SMP',
+            'parent_name' => 'Pak Budi',
+            'parent_phone' => '082233445566',
+            'status' => 'active',
+        ]);
+
+        Enrollment::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'student_id' => $student2->id,
+            'class_id' => $classB->id,
+            'started_at' => now()->toDateString(),
+            'status' => 'active',
+        ]);
+
+        $paymentStudent2 = Payment::create([
+            'id' => (string) Str::uuid(),
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branchMalang->id,
+            'student_id' => $student2->id,
+            'period' => 'Oktober 2026',
+            'amount' => 350000,
+            'due_date' => now()->addDays(5)->format('Y-m-d'),
+            'status' => 'lunas',
+            'notes' => 'SPP SMP Lunas',
+            'recorded_by' => $this->adminMalang->id,
+        ]);
+
+        // 1. Visit index page without filter
+        $response = $this->get(route('admin.payments.index'));
+        $response->assertOk();
+        $response->assertSee('12 SMA Intensif UTBK');
+        $response->assertSee('9 SMP Reguler');
+        $response->assertSee('Kirim Reminder');
+        $response->assertDontSee('Buat Tagihan Baru');
+        $response->assertDontSee('Semua Cabang Anda');
+
+        // 2. Filter by Class A
+        $responseClassA = $this->get(route('admin.payments.index', [
+            'class_id' => $classA->id,
+        ]));
+        $responseClassA->assertOk();
+        $responseClassA->assertSee('Ahmad Siswa Malang');
+        $responseClassA->assertDontSee('Budi Siswa SMP');
+
+        // 3. Combined filter: Class B + status lunas
+        $responseCombined = $this->get(route('admin.payments.index', [
+            'class_id' => $classB->id,
+            'status' => 'lunas',
+            'period' => 'Oktober 2026',
+        ]));
+        $responseCombined->assertOk();
+        $responseCombined->assertSee('Budi Siswa SMP');
+        $responseCombined->assertDontSee('Ahmad Siswa Malang');
+
+        // 4. Combined filter: Class B + status belum_bayar (should show empty)
+        $responseEmpty = $this->get(route('admin.payments.index', [
+            'class_id' => $classB->id,
+            'status' => 'belum_bayar',
+        ]));
+        $responseEmpty->assertOk();
+        $responseEmpty->assertDontSee('Budi Siswa SMP');
+        $responseEmpty->assertDontSee('Ahmad Siswa Malang');
+    }
+
     public function test_admin_can_create_payment_in_accessible_branch(): void
     {
         $this->actingAs($this->adminMalang);
@@ -464,7 +568,8 @@ class AdminPaymentAndHonorTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Dr. Bambang Tutor');
-        $response->assertSee('Skema Honor Standar Malang');
+        $response->assertSee('Rekap Honor Tutor');
+        $response->assertDontSee('Daftar Skema Kompensasi');
     }
 
     public function test_admin_can_view_honor_calculation_details_with_actual_teaching_sessions(): void

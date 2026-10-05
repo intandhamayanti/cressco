@@ -134,31 +134,6 @@ class OwnerPaymentManagementTest extends TestCase
         $this->assertEquals(500000, $response->viewData('payments')->first()->amount);
     }
 
-    public function test_owner_can_create_payment_invoice(): void
-    {
-        $payload = [
-            'branch_id' => $this->branch->id,
-            'student_id' => $this->student->id,
-            'period' => '2026-04',
-            'amount' => 850000,
-            'due_date' => now()->addDays(15)->format('Y-m-d'),
-            'status' => 'belum_bayar',
-            'notes' => 'Tagihan Les Intensif',
-        ];
-
-        $response = $this->actingAs($this->owner)
-            ->post(route('owner.payments.store'), $payload);
-
-        $response->assertRedirect(route('owner.payments.index'));
-        $this->assertDatabaseHas('payments', [
-            'tenant_id' => $this->tenant->id,
-            'student_id' => $this->student->id,
-            'period' => '2026-04',
-            'amount' => 850000,
-            'status' => 'belum_bayar',
-        ]);
-    }
-
     public function test_owner_can_view_payment_detail_with_reminder_generator(): void
     {
         $payment = Payment::create([
@@ -176,89 +151,11 @@ class OwnerPaymentManagementTest extends TestCase
             ->get(route('owner.payments.show', $payment));
 
         $response->assertOk();
-        $response->assertSee('Payment Reminder Generator');
+        $response->assertSee('Template Pengingat Pembayaran');
         $response->assertSee('Budi Santoso');
         $response->assertSee('Santoso Senior');
         $response->assertSee('500.000');
         $response->assertSee('Salin Pesan Reminder');
-    }
-
-    public function test_owner_can_verify_payment(): void
-    {
-        $payment = Payment::create([
-            'tenant_id' => $this->tenant->id,
-            'branch_id' => $this->branch->id,
-            'student_id' => $this->student->id,
-            'period' => '2026-02',
-            'amount' => 500000,
-            'due_date' => now()->addDays(5),
-            'status' => 'menunggu_verifikasi',
-            'recorded_by' => $this->owner->id,
-        ]);
-
-        $response = $this->actingAs($this->owner)
-            ->patch(route('owner.payments.verify', $payment), [
-                'notes' => 'Bukti transfer BCA valid',
-            ]);
-
-        $response->assertRedirect();
-        $payment->refresh();
-
-        $this->assertEquals('lunas', $payment->status);
-        $this->assertNotNull($payment->paid_at);
-        $this->assertEquals('Bukti transfer BCA valid', $payment->notes);
-    }
-
-    public function test_owner_can_update_payment(): void
-    {
-        $payment = Payment::create([
-            'tenant_id' => $this->tenant->id,
-            'branch_id' => $this->branch->id,
-            'student_id' => $this->student->id,
-            'period' => '2026-02',
-            'amount' => 500000,
-            'due_date' => now()->addDays(5),
-            'status' => 'belum_bayar',
-            'recorded_by' => $this->owner->id,
-        ]);
-
-        $response = $this->actingAs($this->owner)
-            ->put(route('owner.payments.update', $payment), [
-                'branch_id' => $this->branch->id,
-                'student_id' => $this->student->id,
-                'period' => '2026-02',
-                'amount' => 600000,
-                'due_date' => now()->addDays(7)->format('Y-m-d'),
-                'status' => 'lunas',
-                'notes' => 'Nominal diupdate dan lunas',
-            ]);
-
-        $response->assertRedirect(route('owner.payments.show', $payment));
-        $payment->refresh();
-
-        $this->assertEquals(600000, $payment->amount);
-        $this->assertEquals('lunas', $payment->status);
-        $this->assertNotNull($payment->paid_at);
-    }
-
-    public function test_owner_can_delete_payment(): void
-    {
-        $payment = Payment::create([
-            'tenant_id' => $this->tenant->id,
-            'branch_id' => $this->branch->id,
-            'student_id' => $this->student->id,
-            'period' => '2026-02',
-            'amount' => 500000,
-            'due_date' => now()->addDays(5),
-            'status' => 'belum_bayar',
-            'recorded_by' => $this->owner->id,
-        ]);
-
-        $response = $this->actingAs($this->owner)
-            ->delete(route('owner.payments.destroy', $payment));
-
-        $response->assertRedirect(route('owner.payments.index'));
-        $this->assertDatabaseMissing('payments', ['id' => $payment->id]);
     }
 
     public function test_tenant_isolation_prevents_viewing_other_tenant_payment(): void
