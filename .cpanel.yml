@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/cresscom/cressco
+    - /bin/rsync -av --delete --exclude='.git' --exclude='.cpanel.yml' --exclude='.env' --exclude='node_modules' --exclude='storage/logs/*.log' --exclude='storage/app/public' ./ $DEPLOYPATH
