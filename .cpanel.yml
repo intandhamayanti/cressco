@@ -1,5 +1,12 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/cresscom/cressco
-    - /bin/rsync -av --delete --exclude='.git' --exclude='.cpanel.yml' --exclude='.env' --exclude='node_modules' --exclude='storage/logs/*.log' --exclude='storage/app/public' ./ $DEPLOYPATH
+    - export DEPLOYPATH=/home/cresscom/cressco/
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/cp -R * $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/storage/framework/cache/data
+    - /bin/mkdir -p $DEPLOYPATH/storage/framework/sessions
+    - /bin/mkdir -p $DEPLOYPATH/storage/framework/views
+    - /bin/mkdir -p $DEPLOYPATH/storage/logs
+    - /bin/mkdir -p $DEPLOYPATH/bootstrap/cache
+    - /bin/chmod -R 775 $DEPLOYPATH/storage $DEPLOYPATH/bootstrap/cache
