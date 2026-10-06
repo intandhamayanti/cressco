@@ -1,0 +1,78 @@
+# Stage 1: Build frontend assets with Node.js
+FROM node:20-alpine AS node-builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Stage 2: Install Composer dependencies
+FROM composer:2 AS composer-builder
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-plugins \
+    --no-scripts \
+    --prefer-dist \
+    --optimize-autoloader
+
+# Stage 3: Production Runtime with FrankenPHP
+FROM dunglas/frankenphp:1-php8.2 AS runner
+
+# Install required PHP extensions for Laravel and MySQL
+RUN install-php-extensions \
+    bcmath \
+    ctype \
+    curl \
+    dom \
+    fileinfo \
+    filter \
+    hash \
+    intl \
+    mbstring \
+    openssl \
+    pcre \
+    pdo \
+    pdo_mysql \
+    session \
+    tokenizer \
+    xml \
+    zip \
+    opcache \
+    pcntl
+
+WORKDIR /app
+
+# Copy Composer binary from composer-builder
+COPY --from=composer-builder /usr/bin/composer /usr/bin/composer
+
+# Copy application source
+COPY . /app
+
+# Copy vendor from composer-builder
+COPY --from=composer-builder /app/vendor /app/vendor
+
+# Copy compiled Vite assets from node-builder
+COPY --from=node-builder /app/public/build /app/public/build
+
+# Complete composer autoload dump for production
+RUN composer dump-autoload --optimize --no-dev
+
+# Prepare Laravel storage and cache directories with proper permissions
+RUN mkdir -p /app/storage/framework/cache/data \
+    /app/storage/framework/sessions \
+    /app/storage/framework/views \
+    /app/storage/logs \
+    /app/bootstrap/cache \
+    && chmod -R 777 /app/storage /app/bootstrap/cache
+
+# Default port to 80 if PORT is not set by Vercel
+ENV PORT=80
+
+# Serve Laravel from /public listening on runtime $PORT
+CMD ["sh", "-c", "frankenphp php-server --listen :${PORT:-80} --root public/"]
