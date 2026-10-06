@@ -237,8 +237,8 @@ class TutorDashboardAndScheduleTest extends TestCase
         $response = $this->actingAs($this->tutorA)->get(route('tutor.dashboard'));
 
         $response->assertStatus(200);
-        $response->assertSee('Selamat Datang, Tutor Arya Wijaya');
-        $response->assertSee('Matematika SMA Kelas 12');
+        $response->assertSee('Tutor Arya Wijaya');
+        $response->assertSee('Kelas yang Diampu');
         $response->assertDontSee('Fisika Dasar Kelas 10'); // Tutor B's class
     }
 

@@ -30,13 +30,22 @@ class TutorScheduleController extends Controller
             ->pluck('class_id')
             ->all();
 
-        // Branches where this tutor has assigned classes or schedules
+        // Branches where this tutor has assigned classes, schedules, or sessions
         $tutorBranchIds = TutorAssignment::where('tenant_id', $tenant->id)
             ->where('tutor_id', $user->id)
+            ->where('status', 'active')
             ->pluck('branch_id')
             ->merge(
                 Schedule::where('tenant_id', $tenant->id)
                     ->where('scheduled_tutor_id', $user->id)
+                    ->pluck('branch_id')
+            )
+            ->merge(
+                TeachingSession::where('tenant_id', $tenant->id)
+                    ->where(function ($q) use ($user) {
+                        $q->where('scheduled_tutor_id', $user->id)
+                            ->orWhere('actual_tutor_id', $user->id);
+                    })
                     ->pluck('branch_id')
             )
             ->unique()
@@ -65,13 +74,10 @@ class TutorScheduleController extends Controller
             $currentDate = Carbon::today();
         }
 
-        // Base Schedule Query
+        // Base Schedule Query (Strictly for this tutor)
         $schedulesQuery = Schedule::where('tenant_id', $tenant->id)
             ->where('status', 'active')
-            ->where(function ($q) use ($user, $assignedClassIds) {
-                $q->where('scheduled_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
-            })
+            ->where('scheduled_tutor_id', $user->id)
             ->with(['class.branch', 'scheduledTutor'])
             ->orderBy('day_of_week')
             ->orderBy('start_time');
@@ -86,12 +92,11 @@ class TutorScheduleController extends Controller
 
         $schedules = $schedulesQuery->get();
 
-        // Base Sessions Query (Teaching sessions for tutor)
+        // Base Sessions Query (Teaching sessions for tutor - scheduled or replacement)
         $sessionsQuery = TeachingSession::where('tenant_id', $tenant->id)
-            ->where(function ($q) use ($user, $assignedClassIds) {
-                $q->where('actual_tutor_id', $user->id)
-                    ->orWhere('scheduled_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
+            ->where(function ($q) use ($user) {
+                $q->where('scheduled_tutor_id', $user->id)
+                    ->orWhere('actual_tutor_id', $user->id);
             })
             ->with(['class.branch', 'scheduledTutor', 'actualTutor'])
             ->withCount('studentAttendances')
@@ -122,20 +127,14 @@ class TutorScheduleController extends Controller
         // Stats
         $totalSchedulesCount = Schedule::where('tenant_id', $tenant->id)
             ->where('status', 'active')
-            ->where(function ($q) use ($user, $assignedClassIds) {
-                $q->where('scheduled_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
-            })
+            ->where('scheduled_tutor_id', $user->id)
             ->count();
 
         $today = Carbon::today();
         $todaySchedulesCount = Schedule::where('tenant_id', $tenant->id)
             ->where('status', 'active')
             ->where('day_of_week', $today->dayOfWeek)
-            ->where(function ($q) use ($user, $assignedClassIds) {
-                $q->where('scheduled_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
-            })
+            ->where('scheduled_tutor_id', $user->id)
             ->count();
 
         $monthName = $currentDate->translatedFormat('F Y');
@@ -143,10 +142,9 @@ class TutorScheduleController extends Controller
         $endOfCal = $currentDate->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
 
         $monthSessionsDates = TeachingSession::where('tenant_id', $tenant->id)
-            ->where(function ($q) use ($user, $assignedClassIds) {
-                $q->where('actual_tutor_id', $user->id)
-                    ->orWhere('scheduled_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
+            ->where(function ($q) use ($user) {
+                $q->where('scheduled_tutor_id', $user->id)
+                    ->orWhere('actual_tutor_id', $user->id);
             })
             ->whereBetween('session_date', [$currentDate->copy()->startOfMonth()->toDateString(), $currentDate->copy()->endOfMonth()->toDateString()])
             ->pluck('session_date')
@@ -156,10 +154,7 @@ class TutorScheduleController extends Controller
 
         $activeSchedulesDaysOfWeek = Schedule::where('tenant_id', $tenant->id)
             ->where('status', 'active')
-            ->where(function ($q) use ($user, $assignedClassIds) {
-                $q->where('scheduled_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
-            })
+            ->where('scheduled_tutor_id', $user->id)
             ->pluck('day_of_week')
             ->unique()
             ->all();
@@ -230,10 +225,9 @@ class TutorScheduleController extends Controller
 
         // Top reminder item (next upcoming session today or this week)
         $nextUpcomingSession = TeachingSession::where('tenant_id', $tenant->id)
-            ->where(function ($q) use ($user, $assignedClassIds) {
-                $q->where('actual_tutor_id', $user->id)
-                    ->orWhere('scheduled_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
+            ->where(function ($q) use ($user) {
+                $q->where('scheduled_tutor_id', $user->id)
+                    ->orWhere('actual_tutor_id', $user->id);
             })
             ->whereDate('session_date', '>=', $today->toDateString())
             ->where('status', 'scheduled')

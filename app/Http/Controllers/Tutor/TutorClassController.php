@@ -119,14 +119,22 @@ class TutorClassController extends Controller
             'enrollments' => function ($q) use ($tenant) {
                 $q->where('tenant_id', $tenant->id)->with('student')->latest();
             },
-            'schedules' => function ($q) use ($tenant) {
-                $q->where('tenant_id', $tenant->id)->with('scheduledTutor')->orderBy('day_of_week')->orderBy('start_time');
+            'schedules' => function ($q) use ($tenant, $user) {
+                $q->where('tenant_id', $tenant->id)
+                    ->where('scheduled_tutor_id', $user->id)
+                    ->with('scheduledTutor')
+                    ->orderBy('day_of_week')
+                    ->orderBy('start_time');
             },
             'tutors' => function ($q) use ($tenant) {
                 $q->where('users.tenant_id', $tenant->id);
             },
-            'teachingSessions' => function ($q) use ($tenant) {
+            'teachingSessions' => function ($q) use ($tenant, $user) {
                 $q->where('tenant_id', $tenant->id)
+                    ->where(function ($sq) use ($user) {
+                        $sq->where('scheduled_tutor_id', $user->id)
+                            ->orWhere('actual_tutor_id', $user->id);
+                    })
                     ->with(['scheduledTutor', 'actualTutor'])
                     ->withCount('studentAttendances')
                     ->latest('session_date')

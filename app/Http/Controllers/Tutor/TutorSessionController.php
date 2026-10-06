@@ -28,15 +28,29 @@ class TutorSessionController extends Controller
 
         Gate::authorize('viewAny', TeachingSession::class);
 
-        $assignedClassIds = TutorAssignment::where('tenant_id', $tenant->id)
+        $tutorClassIds = TutorAssignment::where('tenant_id', $tenant->id)
             ->where('tutor_id', $user->id)
+            ->where('status', 'active')
             ->pluck('class_id')
+            ->merge(
+                TeachingSession::where('tenant_id', $tenant->id)
+                    ->where(function ($q) use ($user) {
+                        $q->where('scheduled_tutor_id', $user->id)
+                            ->orWhere('actual_tutor_id', $user->id);
+                    })
+                    ->pluck('class_id')
+            )
+            ->unique()
+            ->filter()
             ->all();
 
+        $tutorClasses = Classes::where('tenant_id', $tenant->id)
+            ->whereIn('id', $tutorClassIds)
+            ->orderBy('name')
+            ->get();
+
         $tutorBranches = Branch::where('tenant_id', $tenant->id)
-            ->whereHas('classes.tutorAssignments', function ($q) use ($user) {
-                $q->where('tutor_id', $user->id);
-            })
+            ->whereIn('id', $tutorClasses->pluck('branch_id')->unique()->filter())
             ->orderBy('name')
             ->get();
 
@@ -47,12 +61,11 @@ class TutorSessionController extends Controller
         $dateFrom = $request->query('date_from');
         $dateTo = $request->query('date_to');
 
-        // Query sessions in tutor's teaching scope
+        // Query sessions strictly in tutor's teaching scope (scheduled tutor or replacement actual tutor)
         $query = TeachingSession::where('tenant_id', $tenant->id)
-            ->where(function ($q) use ($user, $assignedClassIds) {
+            ->where(function ($q) use ($user) {
                 $q->where('scheduled_tutor_id', $user->id)
-                    ->orWhere('actual_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
+                    ->orWhere('actual_tutor_id', $user->id);
             })
             ->with([
                 'classModel.branch',
@@ -102,20 +115,14 @@ class TutorSessionController extends Controller
 
         // Metrics for summary cards
         $metricsBase = TeachingSession::where('tenant_id', $tenant->id)
-            ->where(function ($q) use ($user, $assignedClassIds) {
+            ->where(function ($q) use ($user) {
                 $q->where('scheduled_tutor_id', $user->id)
-                    ->orWhere('actual_tutor_id', $user->id)
-                    ->orWhereIn('class_id', $assignedClassIds);
+                    ->orWhere('actual_tutor_id', $user->id);
             });
 
         $totalSessions = (clone $metricsBase)->count();
         $completedSessions = (clone $metricsBase)->where('status', 'completed')->count();
         $scheduledSessions = (clone $metricsBase)->where('status', 'scheduled')->count();
-
-        $tutorClasses = Classes::where('tenant_id', $tenant->id)
-            ->whereIn('id', $assignedClassIds)
-            ->orderBy('name')
-            ->get();
 
         return view('tutor.sessions.index', compact(
             'tenant',
@@ -198,6 +205,15 @@ class TutorSessionController extends Controller
 
     public function update(UpdateTeachingSessionRequest $request, TeachingSession $session): RedirectResponse
     {
+        $user = $request->user();
+        $tenant = TenantContext::getTenant() ?? $user->tenant;
+
+        if (! $tenant || $session->tenant_id !== $tenant->id || ! $user->canAccessTeachingSession($session)) {
+            abort(404, 'Sesi mengajar tidak ditemukan atau di luar cakupan Anda.');
+        }
+
+        Gate::authorize('update', $session);
+
         $validated = $request->validated();
 
         $dataToUpdate = [];
@@ -222,8 +238,8 @@ class TutorSessionController extends Controller
         $user = $request->user();
         $tenant = TenantContext::getTenant() ?? $user->tenant;
 
-        if (! $tenant || $session->tenant_id !== $tenant->id) {
-            abort(404, 'Sesi mengajar tidak ditemukan.');
+        if (! $tenant || $session->tenant_id !== $tenant->id || ($session->scheduled_tutor_id !== $user->id && $session->actual_tutor_id !== $user->id)) {
+            abort(404, 'Sesi mengajar tidak ditemukan atau di luar cakupan Anda.');
         }
 
         if ($session->status !== 'scheduled') {

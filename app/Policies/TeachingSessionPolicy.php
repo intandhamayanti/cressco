@@ -109,8 +109,7 @@ class TeachingSessionPolicy
 
         if ($user->isTutor()) {
             return $session->scheduled_tutor_id === $user->id
-                || $session->actual_tutor_id === $user->id
-                || $user->canTeachClass($session->class_id);
+                || $session->actual_tutor_id === $user->id;
         }
 
         return false;

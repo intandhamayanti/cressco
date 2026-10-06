@@ -35,7 +35,7 @@ class SchedulePolicy
         }
 
         if ($user->isTutor()) {
-            return $schedule->scheduled_tutor_id === $user->id || $user->canTeachClass($schedule->class_id);
+            return $schedule->scheduled_tutor_id === $user->id;
         }
 
         return false;

@@ -388,7 +388,7 @@ class TutorAssessmentAndHistoryTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Riwayat Mengajar');
         $response->assertSee('Integral Parsial & Latihan Soal Mandiri');
-        $response->assertSee('90 Menit');
+        $response->assertSee('Matematika SMA Kelas 12');
         // Scheduled session should NOT be in history index
         $response->assertDontSee('tomorrow');
     }

@@ -214,8 +214,7 @@ class User extends Authenticatable
 
         if ($this->isTutor()) {
             return $session->scheduled_tutor_id === $this->id
-                || $session->actual_tutor_id === $this->id
-                || $this->canTeachClass($session->class_id);
+                || $session->actual_tutor_id === $this->id;
         }
 
         return false;

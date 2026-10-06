@@ -26,13 +26,25 @@ class TutorTeachingHistoryController extends Controller
 
         Gate::authorize('viewAny', TeachingSession::class);
 
-        $assignedClassIds = TutorAssignment::where('tenant_id', $tenant->id)
+        $historyClassIds = TutorAssignment::where('tenant_id', $tenant->id)
             ->where('tutor_id', $user->id)
+            ->where('status', 'active')
             ->pluck('class_id')
+            ->merge(
+                TeachingSession::where('tenant_id', $tenant->id)
+                    ->where('status', 'completed')
+                    ->where(function ($q) use ($user) {
+                        $q->where('actual_tutor_id', $user->id)
+                            ->orWhere('scheduled_tutor_id', $user->id);
+                    })
+                    ->pluck('class_id')
+            )
+            ->unique()
+            ->filter()
             ->all();
 
         $tutorClasses = Classes::where('tenant_id', $tenant->id)
-            ->whereIn('id', $assignedClassIds)
+            ->whereIn('id', $historyClassIds)
             ->orderBy('name')
             ->get();
 

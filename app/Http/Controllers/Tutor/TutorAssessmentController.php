@@ -33,6 +33,7 @@ class TutorAssessmentController extends Controller
 
         $assignedClassIds = TutorAssignment::where('tenant_id', $tenant->id)
             ->where('tutor_id', $user->id)
+            ->where('status', 'active')
             ->pluck('class_id')
             ->all();
 

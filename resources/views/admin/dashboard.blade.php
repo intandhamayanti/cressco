@@ -1,10 +1,25 @@
 <x-admin-layout :tenant="$tenant" title="Admin Dashboard">
     <x-slot:breadcrumbSub>Dashboard</x-slot:breadcrumbSub>
 
-    <div class="space-y-6 max-w-7xl mx-auto">
+    <div class="space-y-6 max-w-7xl mx-auto"
+         x-data="{ loading: true }"
+         x-init="setTimeout(() => loading = false, 2500)">
         
-        <!-- Header & Branch Filter Selector -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200/70">
+        <!-- Skeleton Loading State (Visible for 2.5s) -->
+        <div x-show="loading" class="transition-opacity duration-300">
+            <x-cressco.skeleton-dashboard type="admin" />
+        </div>
+
+        <!-- Real Dashboard Content -->
+        <div x-show="!loading"
+             x-cloak
+             x-transition:enter="transition ease-out duration-300 transform"
+             x-transition:enter-start="opacity-0 translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="space-y-6">
+
+            <!-- Header & Branch Filter Selector -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200/70">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Operasional Cabang</h1>
                 <p class="text-xs text-gray-500 mt-1">
@@ -320,4 +335,5 @@
         </div>
 
     </div>
+</div>
 </x-admin-layout>

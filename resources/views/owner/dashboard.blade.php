@@ -15,13 +15,28 @@
         $totalTransactionsCount = $paidCount + $pendingCount + $overdueCount;
     @endphp
 
-    <div class="space-y-8 max-w-7xl mx-auto">
+    <div class="space-y-8 max-w-7xl mx-auto"
+         x-data="{ loading: true }"
+         x-init="setTimeout(() => loading = false, 2500)">
         
-        <!-- 1. PAGE HEADER & SELECTORS (Branch & Period) -->
-        <x-cressco.page-header
-            title="Dashboard Eksekutif"
-            subtitle="Ringkasan performa finansial, pertumbuhan siswa, dan status penerimaan bimbel."
-        >
+        <!-- Skeleton Loading State (Visible for 2.5s) -->
+        <div x-show="loading" class="transition-opacity duration-300">
+            <x-cressco.skeleton-dashboard type="owner" />
+        </div>
+
+        <!-- Real Dashboard Content -->
+        <div x-show="!loading"
+             x-cloak
+             x-transition:enter="transition ease-out duration-300 transform"
+             x-transition:enter-start="opacity-0 translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="space-y-8">
+
+            <!-- 1. PAGE HEADER & SELECTORS (Branch & Period) -->
+            <x-cressco.page-header
+                title="Dashboard Eksekutif"
+                subtitle="Ringkasan performa finansial, pertumbuhan siswa, dan status penerimaan bimbel."
+            >
             <!-- Controls: Branch & Period Selectors using Reusable Cressco Dropdowns -->
             <div class="flex flex-wrap items-center gap-3">
                 
@@ -193,4 +208,5 @@
         </div>
 
     </div>
+</div>
 </x-owner-layout>

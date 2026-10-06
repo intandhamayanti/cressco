@@ -76,7 +76,7 @@
                     <input type="text"
                            name="search"
                            value="{{ $search }}"
-                           placeholder="Cari materi / kelas / ruang..."
+                           placeholder="Cari materi / kelas..."
                            class="w-full text-xs font-medium bg-gray-50/70 border border-gray-200 rounded-xl px-3 py-2 focus:bg-white focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500">
                 </div>
 
@@ -142,7 +142,6 @@
                         <thead>
                             <tr class="border-b border-gray-100 bg-gray-50/50 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                                 <th class="p-4">Tanggal & Jam</th>
-                                <th class="p-4">Durasi</th>
                                 <th class="p-4">Kelas & Cabang</th>
                                 <th class="p-4">Materi Diajarkan</th>
                                 <th class="p-4 text-center">Kehadiran Siswa</th>
@@ -151,14 +150,6 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-gray-700">
                             @foreach ($sessions as $session)
-                                @php
-                                    $durationMinutes = 0;
-                                    if ($session->start_time && $session->end_time) {
-                                        $sTime = \Carbon\Carbon::parse('2000-01-01 ' . $session->start_time);
-                                        $eTime = \Carbon\Carbon::parse('2000-01-01 ' . $session->end_time);
-                                        $durationMinutes = abs($eTime->diffInMinutes($sTime));
-                                    }
-                                @endphp
                                 <tr class="hover:bg-gray-50/60 transition">
                                     <!-- Tanggal & Jam -->
                                     <td class="p-4">
@@ -170,22 +161,13 @@
                                         </div>
                                     </td>
 
-                                    <!-- Durasi -->
-                                    <td class="p-4">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
-                                            {{ $durationMinutes }} Menit
-                                        </span>
-                                    </td>
-
                                     <!-- Kelas & Cabang -->
                                     <td class="p-4">
                                         <div class="font-bold text-gray-900">
                                             {{ $session->classModel?->name ?? 'Kelas' }}
                                         </div>
-                                        <div class="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5">
-                                            <span>{{ $session->branch?->name ?? '-' }}</span>
-                                            <span>•</span>
-                                            <span>Ruang: {{ $session->room ?? '-' }}</span>
+                                        <div class="text-[11px] text-gray-500 mt-0.5">
+                                            {{ $session->branch?->name ?? '-' }}
                                         </div>
                                     </td>
 
@@ -212,7 +194,7 @@
                                     <td class="p-4 text-right">
                                         <a href="{{ route('tutor.sessions.show', $session->id) }}"
                                            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-terracotta-50 text-terracotta-700 hover:bg-terracotta-100 font-bold text-xs transition shadow-2xs">
-                                            <span>Lihat Jurnal & Presensi</span>
+                                            <span>Detail</span>
                                             <x-cressco.icon-helper name="chevron-right" class="w-3.5 h-3.5" />
                                         </a>
                                     </td>

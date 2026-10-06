@@ -138,17 +138,16 @@ class OwnerDashboardController extends Controller
 
         $estimatedProfit = max(0, $revenue - $expenses);
 
-        // 4. Revenue vs Expenses Chart Data (Elapsed Months up to Current Month)
+        // 4. Revenue vs Expenses Chart Data (All 12 Months of Year)
         $yearStart = $now->copy()->startOfYear();
         $monthlyChartData = [];
         $monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        $maxMonth = ($yearStart->year === $now->year) ? $now->month : 12;
         $chartYear = $yearStart->year;
-        $chartRangeStart = Carbon::create($chartYear, 1, 1)->startOfMonth();
-        $chartRangeEnd = Carbon::create($chartYear, $maxMonth, 1)->endOfMonth();
+        $chartRangeStart = Carbon::create($chartYear, 1, 1)->startOfDay();
+        $chartRangeEnd = Carbon::create($chartYear, 12, 31)->endOfDay();
 
         // Aggregated payments in memory
-        $monthlyRevenue = array_fill(1, $maxMonth, 0.0);
+        $monthlyRevenue = array_fill(1, 12, 0.0);
         $chartRevenueQuery = Payment::where('tenant_id', $tenant->id)
             ->where('status', 'lunas')
             ->where(function ($q) use ($chartRangeStart, $chartRangeEnd) {
@@ -160,10 +159,13 @@ class OwnerDashboardController extends Controller
             });
         $applyBranch($chartRevenueQuery);
         foreach ($chartRevenueQuery->get(['amount', 'paid_at', 'created_at']) as $chartPayment) {
-            $monthlyRevenue[(int) Carbon::parse($chartPayment->paid_at ?? $chartPayment->created_at)->month] += (float) $chartPayment->amount;
+            $m = (int) Carbon::parse($chartPayment->paid_at ?? $chartPayment->created_at)->month;
+            if ($m >= 1 && $m <= 12) {
+                $monthlyRevenue[$m] += (float) $chartPayment->amount;
+            }
         }
 
-        $monthlyExpenses = array_fill(1, $maxMonth, 0.0);
+        $monthlyExpenses = array_fill(1, 12, 0.0);
         $chartExpenseQuery = HonorCalculation::where('tenant_id', $tenant->id)
             ->whereIn('status', ['final', 'paid'])
             ->where(function ($q) use ($chartRangeStart, $chartRangeEnd) {
@@ -179,9 +181,9 @@ class OwnerDashboardController extends Controller
                 if ($honorDate === null) {
                     continue;
                 }
-                $honorDate = Carbon::parse($honorDate);
-                if ($honorDate->year === $chartYear && $honorDate->month <= $maxMonth) {
-                    $honorMonths[$honorDate->month] = true;
+                $hDate = Carbon::parse($honorDate);
+                if ($hDate->year === $chartYear && $hDate->month >= 1 && $hDate->month <= 12) {
+                    $honorMonths[$hDate->month] = true;
                 }
             }
             foreach (array_keys($honorMonths) as $honorMonth) {
@@ -189,9 +191,9 @@ class OwnerDashboardController extends Controller
             }
         }
 
-        for ($m = 1; $m <= $maxMonth; $m++) {
-            $mRev = $monthlyRevenue[$m];
-            $mExp = $monthlyExpenses[$m];
+        for ($m = 1; $m <= 12; $m++) {
+            $mRev = $monthlyRevenue[$m] ?? 0.0;
+            $mExp = $monthlyExpenses[$m] ?? 0.0;
 
             // Amounts in millions for clean chart representation
             $revInM = round($mRev / 1000000, 2);

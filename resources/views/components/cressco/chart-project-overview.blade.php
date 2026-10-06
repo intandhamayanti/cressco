@@ -24,7 +24,7 @@
         ['label' => 'Oct', 'val1' => 24, 'val2' => 6, 'val3' => 18],
     ];
 
-    $chartData = $data ?? $defaultData;
+    $chartData = (!empty($data) && is_array($data) && count($data) > 0) ? $data : $defaultData;
     $currentMonthIdx = now()->month - 1;
 
     // Calculate max value dynamically for proportional scaling
@@ -34,7 +34,31 @@
         $peakVal1 = max($peakVal1, (float) ($row['val1'] ?? 0));
         $peakVal2 = max($peakVal2, (float) ($row['val2'] ?? 0));
     }
-    $maxVal = max($isCurrency ? 50 : 35, $peakVal1 * 1.15);
+
+    $rawPeak = max($peakVal1, $peakVal2);
+    if ($isCurrency) {
+        if ($rawPeak > 100) {
+            $maxVal = ceil($rawPeak / 50) * 50;
+        } elseif ($rawPeak > 50) {
+            $maxVal = ceil($rawPeak / 25) * 25;
+        } elseif ($rawPeak > 0) {
+            $maxVal = 50;
+        } else {
+            $maxVal = 50;
+        }
+        $step3 = round($maxVal);
+        $step2 = round($maxVal * 0.7);
+        $step1 = round($maxVal * 0.4);
+        $step0 = 0;
+        $stepNeg = -round($maxVal * 0.2);
+    } else {
+        $maxVal = max(35, ceil($rawPeak / 5) * 5);
+        $step3 = round($maxVal);
+        $step2 = round($maxVal * 0.67);
+        $step1 = round($maxVal * 0.33);
+        $step0 = 0;
+        $stepNeg = -round($maxVal * 0.2);
+    }
 @endphp
 
 <div x-data="{
@@ -76,17 +100,17 @@
         <!-- Y-Axis Fixed Left Column -->
         <div class="w-9 sm:w-11 shrink-0 flex flex-col justify-between text-right pr-2 text-[11px] font-medium text-gray-400 font-mono select-none h-[210px] pb-2">
             @if ($isCurrency)
-                <div>50M</div>
-                <div>35M</div>
-                <div>20M</div>
+                <div>{{ $step3 }}M</div>
+                <div>{{ $step2 }}M</div>
+                <div>{{ $step1 }}M</div>
                 <div class="font-bold text-gray-700">0M</div>
-                <div>-10M</div>
+                <div>{{ $stepNeg }}M</div>
             @else
-                <div>30</div>
-                <div>20</div>
-                <div>10</div>
+                <div>{{ $step3 }}</div>
+                <div>{{ $step2 }}</div>
+                <div>{{ $step1 }}</div>
                 <div class="font-bold text-gray-700">00</div>
-                <div>-10</div>
+                <div>{{ $stepNeg }}</div>
             @endif
         </div>
 
